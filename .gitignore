@@ -9,6 +9,10 @@ exp.ipynb
 
 # models
 model/*.pth
+snapshot/*
+
+# logs
+*.log
 
 # Mac DS_Store
 .DS_Store

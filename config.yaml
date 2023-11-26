@@ -1,0 +1,16 @@
+trainer_config:
+  DATA_DIR: ./data
+  TRAIN_SPLIT: 0.8
+  MAX_EPOCHS: 12
+  SAVE_EVERY: 3
+  NUM_WORKERS: 2
+  RUN_NAME: initial
+  snapshot_path: ./snapshot/myosam_vit_h.pt
+optimizer_config:
+  WEIGHT_DECAY: 0.1
+  LR: 0.0001
+  learning_rate: 0.0003
+
+hydra:
+  run:
+    dir: ./
