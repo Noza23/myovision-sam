@@ -70,7 +70,7 @@ class MyoData(Dataset):
         image = self.transform_image(image.permute(1, 2, 0).numpy())
 
         transformed_masks = [
-            self.transform_mask(rle_to_mask(mk).astype("float32"))
+            self.transform_mask(rle_to_mask(mk).astype("uint8"))
             for mk in seg["annotations"]
         ]
         assert(image.shape[-2: ] == transformed_masks[0].shape)

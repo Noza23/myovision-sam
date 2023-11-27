@@ -113,8 +113,8 @@ class Trainer:
                 self.writer.add_scalar(
                     "LR", self.scheduler.get_last_lr()[0], epoch
                 )
-            if self.local_rank == 0 and epoch % self.save_every == 0:
-                self._save_snapshot(epoch)
+                if epoch % self.save_every == 0:
+                    self._save_snapshot(epoch)
 
     def _run_epoch(self, epoch: int) -> None:
         """Runs a single epoch."""
@@ -212,8 +212,7 @@ class Trainer:
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
-            
-            return loss.item()
+        return loss.item()
 
     def _save_snapshot(self, epoch: int):
         snapshot = {
@@ -222,8 +221,7 @@ class Trainer:
             "OPTIMIZER_STATE": self.optimizer.state_dict(),
             "SCHEDULER_STATE": self.scheduler.state_dict()
         }
-        if self.global_rank == 0 & self.local_rank == 0:
-            torch.save(snapshot, self.snapshot_path)
-            self.logger.info(
-                f"Epoch {epoch} | Snapshot saved at {self.snapshot_path}"
-            )
+        torch.save(snapshot, self.snapshot_path)
+        self.logger.info(
+            f"Epoch {epoch} | Snapshot saved at {self.snapshot_path}"
+        )
