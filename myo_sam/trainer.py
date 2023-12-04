@@ -14,59 +14,76 @@ from monai.metrics import compute_iou
 
 from .build_myosam import build_myosam
 from .dataset import MyoData
-
-logging.basicConfig(
-    filename="myosam.log",
-    filemode="a",
-    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-    datefmt='%H:%M:%S',
-    level=logging.INFO
+from .utils import (
+    sample_initial_points,
+    sample_points_from_error_region
 )
 
 @dataclass
 class TrainerConfig:
     DATA_DIR: str
+    MAX_INSTANCES: int
     TRAIN_SPLIT: float
     MAX_EPOCHS: int
     SAVE_EVERY: int
+    INT_ITERATIONS: int
     NUM_WORKERS: int
     RUN_NAME: str
     SNAPHOT_PATH: str="./snapshot/myosam_vit_h.pt"
-
 
 @dataclass
 class OptimizerConfig:
     LR: float=1e-4
     WEIGHT_DECAY: float=0.1
 
-
 class Trainer:
     def __init__(
         self,
         config_train: TrainerConfig,
         config_optim: OptimizerConfig,
-    ):
+    ) -> None:
+        """
+        Args:
+            config_train (TrainerConfig): Training cfg (config.yaml)
+            config_optim (OptimizerConfig): Optimizer cfg (config.yaml)
+        """
         self.save_every = config_train.SAVE_EVERY
         self.max_epochs = config_train.MAX_EPOCHS
         self.snapshot_path = config_train.SNAPHOT_PATH
-        self.logger = logging.getLogger("Training")
-        self.writer = SummaryWriter(f"/runs/{config_train.RUN_NAME}")
+        self.its = config_train.INT_ITERATIONS
+        self.writer = SummaryWriter(f"runs/{config_train.RUN_NAME}")
         self.local_rank = int(os.environ["LOCAL_RANK"])
-        self.global_rank = int(os.environ["RANK"])
         self.model, self.metadata = build_myosam(self.snapshot_path)
         self.epochs_run = self.metadata["EPOCHS_RUN"]
         self.model = self.model.to(self.local_rank)
-        
+
+        # Logger
+        file_handler = logging.FileHandler("myosam.log")
+        file_handler.setFormatter(
+            logging.Formatter(
+                "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+            )
+        )
+        file_handler.setLevel(logging.INFO)
+        self.logger = logging.getLogger("Training")
+        self.logger.addHandler(file_handler)
+        self.logger.setLevel(logging.INFO)
+
         # amp scaler:
         # https://pytorch.org/docs/stable/notes/amp_examples.html#amp-examples
         self.scaler = torch.cuda.amp.GradScaler()
 
         # Data
         self.dataset_train = MyoData(
-            config_train.DATA_DIR, split=config_train.TRAIN_SPLIT
+            config_train.DATA_DIR,
+            config_train.MAX_INSTANCES,
+            split=config_train.TRAIN_SPLIT
         )
         self.dataset_test = MyoData(
-            config_train.DATA_DIR, train=False, split=config_train.TRAIN_SPLIT
+            config_train.DATA_DIR,
+            config_train.MAX_INSTANCES,
+            train=False,
+            split=config_train.TRAIN_SPLIT
         )
         self.sampler_train = DistributedSampler(self.dataset_train)
         self.sampler_test = DistributedSampler(self.dataset_test)
@@ -76,14 +93,16 @@ class Trainer:
             batch_size=1,
             pin_memory=True,
             num_workers=config_train.NUM_WORKERS,
-            sampler=self.sampler_train
+            sampler=self.sampler_train,
+            shuffle=False
         )
         self.dataloader_test = DataLoader(
             self.dataset_test,
             batch_size=1,
             pin_memory=True,
             num_workers=config_train.NUM_WORKERS,
-            sampler=self.sampler_test
+            sampler=self.sampler_test,
+            shuffle=False
         )
 
         # Optimizer, Scheduler, Page 17 of the paper.
@@ -102,17 +121,23 @@ class Trainer:
         self.mask_head_loss = DiceFocalLoss(
             sigmoid=True, squared_pred=False, lambda_dice=1, lambda_focal=20
         )
-        self.model = DDP(self.model, device_ids=[self.local_rank])
+        self.model = DDP(
+            self.model,
+            device_ids=[self.local_rank],
+            find_unused_parameters=True
+        )
         
     def train(self):
         """Trains the model for max_epochs."""
         for epoch in range(self.epochs_run, self.max_epochs):
             _ = self._run_epoch(epoch)
+            # Scheduler step is updated after each epoch.
             self.scheduler.step()
-            if self.local_rank == 0 & self.global_rank == 0:
-                self.writer.add_scalar(
-                    "LR", self.scheduler.get_last_lr()[0], epoch
-                )
+            lr = self.scheduler.get_last_lr()[0]
+            self.logger.info(f"Epoch {epoch} | LR: {lr}")
+            if self.local_rank == 0:
+                # Save snapshot and log LR only from master GPU.
+                self.writer.add_scalar("LR", lr, epoch)
                 if epoch % self.save_every == 0:
                     self._save_snapshot(epoch)
 
@@ -120,12 +145,14 @@ class Trainer:
         """Runs a single epoch."""
         epoch_loss_train: float = 0.0
         epoch_loss_test: float = 0.0
+        train_n = len(self.dataloader_train)
+        test_n = len(self.dataloader_test)
         self.logger.info(
-            (f"[NODE{self.global_rank}]:[GPU{self.local_rank}] | "
-             f"Epoch {epoch} | Steps: {len(self.dataloader_train)}")
+            f"[GPU{self.local_rank}] | Epoch {epoch} | Steps: {train_n}"
         )
         self.sampler_train.set_epoch(epoch)
         # Training
+        self.model.train()
         for b_id, (image, gt_instances) in enumerate(self.dataloader_train):
             # 1x3x1024x1024 ; 1xNx1024x1024
             image: torch.Tensor = image.to(self.local_rank)
@@ -136,85 +163,113 @@ class Trainer:
             epoch_loss_train += loss
             # Logging losses
             self.logger.info(
-                (f"[NODE{self.global_rank}]:[GPU{self.local_rank}] | "
-                 f"Epoch {epoch} | Batch {b_id} | Training Loss {loss:.5f}")
+                (f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
+                 f"Training Loss {loss:.5f}")
             )
+
         # Testing
+        self.model.eval()
         for b_id, (image, gt_instances) in enumerate(self.dataloader_test):
-            image: torch.Tensor = image.to(self.local_rank)
-            gt_instances: torch.Tensor = gt_instances.to(self.local_rank)
+            image = image.to(self.local_rank)
+            gt_instances = gt_instances.to(self.local_rank)
             loss = self._run_batch(
                 image, gt_instances.permute(1, 0, 2, 3), train=False
             )
             self.logger.info(
-                (f"[NODE{self.global_rank}]:[GPU{self.local_rank}] | "
-                 f"Epoch {epoch} | Batch {b_id} | Testing Loss {loss:.5f}")
+                (f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
+                 f"Testing Loss {loss:.5f}")
             )
             epoch_loss_test += loss
         
         # Logging epoch losses to tensorboard
         self.writer.add_scalar(
-            f"Loss/Train[NODE{self.global_rank}]:[GPU{self.local_rank}]",
-            epoch_loss_train / len(self.dataloader_train),
+            f"avg. Loss/Train[GPU{self.local_rank}]",
+            epoch_loss_train / train_n,
             epoch
         )
         self.writer.add_scalar(
-            f"Loss/Test[NODE{self.global_rank}]:[GPU{self.local_rank}]",
-            epoch_loss_test / len(self.dataloader_test),
+            f"avg. Loss/Test[GPU{self.local_rank}]",
+            epoch_loss_test / test_n,
             epoch
         )
         
     def _run_batch(
-        self,
-        image: torch.Tensor,
-        gt_instances: torch.Tensor,
-        train: bool=True
+        self, image: torch.Tensor, gt_instances: torch.Tensor, train: bool
     ) -> float:
         """
         Runs a single batch.
-        
         Args:
             image (torch.Tensor): image of shape 1x3x1024x1024.
             gt_instances (torch.Tensor): ground truth instances of
                 shape Nx1x1024x1024.
-            train (bool, optional): Whether to train or inference.
+            train (bool): Whether to train or inference.
         
         Returns:
             (float): Average Batch Loss.
         """
-        if train:
-            self.model.module.train()
-        else:
-            self.model.module.eval()
+        average_loss: float = 0.0
+        # initial step + its + last step
+        accumulation_steps = self.its + 3
+        # sample a step inbetween the algo to only prompt with mask
+        only_mask_step = torch.randint(1, self.its, (1, )).item()
         with torch.set_grad_enabled(train), torch.autocast("cuda"):
-            mask_logits: torch.Tensor
-            iou_preds: torch.Tensor
-            mask_logits, iou_preds = self.model(image, gt_instances)
-            # (N, 1, 1024, 1024), (N, 1, 1024, 1024)
-            assert(len(mask_logits) == len(gt_instances))
-            losses = [
-                self.mask_head_loss(x.unsqueeze(1), gt_instances)
-                for x in mask_logits.unbind(1)
-            ]
-            # Loss function: Page 17 of the paper.
-            # Still needs discussion
-            loss_min, loss_i = min((loss, i) for i, loss in enumerate(losses))
-            mask_iou = compute_iou(
-                mask_logits[:, loss_i].unsqueeze(1),
+            # Gradient accumulation
+            with self.model.no_sync():
+                # Interactive prompting
+                for i in range(self.its + 2):
+                    if i == 0:
+                        # Initial step
+                        points = sample_initial_points(gt_instances.detach())
+                    else:
+                        # Interactive step
+                        points = sample_points_from_error_region(
+                            gt_instances.detach(),
+                            self.model.module.upscale(low_res_masks.detach())
+                        )
+                    low_res_masks, iou_pred = self.model(
+                        image,
+                        points=points if i != only_mask_step else None,
+                        masks=low_res_masks.detach() if i !=0 else None
+                    )
+                    gt_iou = compute_iou(
+                        self.model.module.upscale(low_res_masks.detach()),
+                        gt_instances
+                    )
+                    # Loss is averaged over accumulation steps.
+                    loss = self.compute_loss(
+                        self.model.module.upscale(low_res_masks, False),
+                        gt_instances, iou_pred, gt_iou
+                    ) / accumulation_steps
+                    average_loss += loss.item()
+                    if train:
+                        self.scaler.scale(loss).backward()
+            
+            # Last step is out of the no_sync context to sync accumlated grads.
+            points = sample_points_from_error_region(
+                gt_instances.detach(),
+                self.model.module.upscale(low_res_masks.detach())
+            )
+            low_res_masks, iou_pred = self.model(
+                image, points=None, masks=low_res_masks.detach()
+            )
+            gt_iou = compute_iou(
+                self.model.module.upscale(low_res_masks.detach()),
                 gt_instances
             )
+            loss = self.compute_loss(
+                self.model.module.upscale(low_res_masks, False),
+                gt_instances, iou_pred, gt_iou
+            ) / accumulation_steps
             if train:
-                # 20 * FocalLoss + 1 * DiceLoss + 1 * MSE Loss of IoU
-                loss: torch.Tensor  = (loss_min
-                                       + F.mse_loss(iou_preds, mask_iou))
-                # Set to None to prevent memory leak.
-                self.optimizer.zero_grad(set_to_none=True)
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
+                # Update is called after accumulating over acc_steps.
                 self.scaler.update()
-        return loss.item()
+                self.optimizer.zero_grad(set_to_none=True)
+        return average_loss
 
-    def _save_snapshot(self, epoch: int):
+    def _save_snapshot(self, epoch: int) -> None:
+        """Saves a snapshot of the model."""
         snapshot = {
             "MODEL_STATE": self.model.module.state_dict(),
             "EPOCHS_RUN": epoch,
@@ -225,3 +280,24 @@ class Trainer:
         self.logger.info(
             f"Epoch {epoch} | Snapshot saved at {self.snapshot_path}"
         )
+
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        gt_instances: torch.Tensor,
+        iou_pred: torch.Tensor, 
+        gt_iou: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Computes loss: DiceLoss + 20xFocalLoss + MSE(IoU)
+        Args:
+            logits (torch.Tensor): Upscaled logits Nx1x1024x1024.
+            gt_instances (torch.Tensor): Ground truth instances
+                Nx1x1024x1024.
+            iou_pred (torch.Tensor): Predicted IoU scores Nx1x1.
+            gt_iou (torch.Tensor): Ground truth IoU scores Nx1x1.
+        """
+        loss = (self.mask_head_loss(logits, gt_instances)
+                + F.mse_loss(iou_pred, gt_iou))
+        return loss
+    

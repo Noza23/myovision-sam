@@ -9,6 +9,7 @@ exp.ipynb
 
 # hydra
 .hydra/
+test*
 
 # models
 model/*.pth

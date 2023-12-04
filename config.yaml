@@ -1,15 +1,21 @@
 trainer_config:
   DATA_DIR: ./data
+  MAX_INSTANCES: 54
   TRAIN_SPLIT: 0.8
   MAX_EPOCHS: 12
   SAVE_EVERY: 3
+  INT_ITERATIONS: 8
   NUM_WORKERS: 2
   RUN_NAME: initial
-  snapshot_path: ./snapshot/myosam_vit_h.pt
+  SNAPHOT_PATH: ./snapshot/myosam_vit_h.pt
+
 optimizer_config:
   WEIGHT_DECAY: 0.1
   LR: 0.0001
-  learning_rate: 0.0003
+  
+defaults:
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
 
 hydra:
   run:

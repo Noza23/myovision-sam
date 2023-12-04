@@ -13,7 +13,7 @@ def ddp_setup():
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)    
 
-@hydra.main(version_base=None, config_path=".", config_name="config")
+@hydra.main(config_path=".", config_name="config")
 def main(config: DictConfig):
     ddp_setup()
 
