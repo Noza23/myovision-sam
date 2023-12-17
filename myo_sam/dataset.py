@@ -7,6 +7,8 @@ from segment_anything.utils.amg import rle_to_mask
 import os, json
 from .utils import pad_to_square, normalize_pixels
 
+import random
+
 class MyoData(Dataset):
     def __init__(
         self,
@@ -17,15 +19,28 @@ class MyoData(Dataset):
     ):
         self.resize_longest_side = ResizeLongestSide(1024)
         self.data_dir = data_dir
+        self.train = train
         self.max_instances = max_instances
         self.segmentations = [
             fn for fn in os.listdir(data_dir) if fn.endswith('.json')
         ]
+        # Filter out images with just a few annotations
+        self.segmentations = [
+            fn for fn in self.segmentations
+            if len(
+                    json.load(
+                        open(os.path.join(self.data_dir, fn), 'r')
+                    )["annotations"]
+                ) > 5
+        ]
+        random.seed(0)
+        _ = random.shuffle(self.segmentations)
         split_index = int(split * len(self.segmentations))
         if train:
             self.segmentations = self.segmentations[ :split_index]
         else:
             self.segmentations = self.segmentations[split_index: ]
+        
 
     def transform_image(self, image: np.ndarray) -> torch.Tensor:
         """
@@ -39,10 +54,10 @@ class MyoData(Dataset):
         """
         image = self.resize_longest_side.apply_image(image)
         image = torch.from_numpy(image).permute(2, 0, 1)
-        image= normalize_pixels(
+        image = normalize_pixels(
             image,
-            mean=[123.675, 116.28, 103.53],
-            std=[58.395, 57.12, 57.375]
+            mean=[13.21, 21.91, 15.04],
+            std=[7.26, 16.40, 12.12]
         )
         image = pad_to_square(image)
         return image
@@ -77,6 +92,9 @@ class MyoData(Dataset):
 
         # Randomly sample n instances (Paper suggest 64)
         annotations = seg["annotations"]
+        if not self.train:
+            # Test set should be deterministic
+            torch.manual_seed(0)
         idxs = torch.multinomial(
             torch.ones(len(annotations)),
             num_samples=min(self.max_instances, len(annotations)),

@@ -114,7 +114,7 @@ class Trainer:
         )
         if "OPTIMIZER_STATE" in self.metadata.keys():
             self.optimizer.load_state_dict(self.metadata["OPTIMIZER_STATE"])
-        self.scheduler = StepLR(self.optimizer, step_size=2, gamma=0.8)
+        self.scheduler = StepLR(self.optimizer, step_size=2, gamma=0.9)
         if "SCHEDULER_STATE" in self.metadata.keys():
             self.scheduler.load_state_dict(self.metadata["SCHEDULER_STATE"])
 
@@ -129,7 +129,7 @@ class Trainer:
         
     def train(self):
         """Trains the model for max_epochs."""
-        for epoch in range(self.epochs_run, self.max_epochs):
+        for epoch in range(self.epochs_run + 1, self.max_epochs):
             _ = self._run_epoch(epoch)
             # Scheduler step is updated after each epoch.
             self.scheduler.step()
