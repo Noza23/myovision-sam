@@ -18,13 +18,15 @@ snapshot/*
 # logs
 *.log
 
+# ruff
+.ruff*
+ruff.log
+
 # Mac DS_Store
 .DS_Store
-# data directory
-data/
-checkpoint/
-todo.txt
 
+# checkpoints
+checkpoint/
 
 # Distribution / packaging
 .Python

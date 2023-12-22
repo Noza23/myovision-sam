@@ -6,11 +6,12 @@ from segment_anything.modeling import (
     ImageEncoderViT,
     PromptEncoder,
     MaskDecoder,
-    TwoWayTransformer
+    TwoWayTransformer,
 )
 
+
 def build_myosam(
-    snapshot_path: Union[str, None]
+    snapshot_path: Union[str, None],
 ) -> tuple[MyoSam, dict[str, Any]]:
     """
     Builds a MyoSam model from a snapshot. The snapshot is a dictionary
@@ -28,7 +29,7 @@ def build_myosam(
     encoder_embed_dim = 1280
     encoder_depth = 32
     encoder_num_heads = 16
-    encoder_global_attn_indexes=[7, 15, 23, 31]
+    encoder_global_attn_indexes = [7, 15, 23, 31]
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
@@ -67,12 +68,10 @@ def build_myosam(
             transformer_dim=prompt_embed_dim,
             iou_head_depth=3,
             iou_head_hidden_dim=256,
-        )
+        ),
     )
     if snapshot_path is None:
-        return myosam, {'EPOCHS_RUN': 0}
-    snapshot: dict = torch.load(snapshot_path, map_location='cpu')
-    myosam.load_state_dict(snapshot['MODEL_STATE'])
-    return myosam, {k:v for k, v in snapshot.items() if k != 'MODEL_STATE'}
-
-    
+        return myosam, {"EPOCHS_RUN": 0}
+    snapshot: dict = torch.load(snapshot_path, map_location="cpu")
+    myosam.load_state_dict(snapshot["MODEL_STATE"])
+    return myosam, {k: v for k, v in snapshot.items() if k != "MODEL_STATE"}

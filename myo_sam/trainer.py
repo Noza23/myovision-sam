@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-import os, logging
+import os
+import logging
 
 import torch
 from torch.nn import functional as F
@@ -14,10 +15,8 @@ from monai.metrics import compute_iou
 
 from .build_myosam import build_myosam
 from .dataset import MyoData
-from .utils import (
-    sample_initial_points,
-    sample_points_from_error_region
-)
+from .utils import sample_initial_points, sample_points_from_error_region
+
 
 @dataclass
 class TrainerConfig:
@@ -29,12 +28,14 @@ class TrainerConfig:
     INT_ITERATIONS: int
     NUM_WORKERS: int
     RUN_NAME: str
-    SNAPHOT_PATH: str="./snapshot/myosam_vit_h.pt"
+    SNAPHOT_PATH: str = "./snapshot/myosam_vit_h.pt"
+
 
 @dataclass
 class OptimizerConfig:
-    LR: float=1e-4
-    WEIGHT_DECAY: float=0.1
+    LR: float = 1e-4
+    WEIGHT_DECAY: float = 0.1
+
 
 class Trainer:
     def __init__(
@@ -77,13 +78,13 @@ class Trainer:
         self.dataset_train = MyoData(
             config_train.DATA_DIR,
             config_train.MAX_INSTANCES,
-            split=config_train.TRAIN_SPLIT
+            split=config_train.TRAIN_SPLIT,
         )
         self.dataset_test = MyoData(
             config_train.DATA_DIR,
             config_train.MAX_INSTANCES,
             train=False,
-            split=config_train.TRAIN_SPLIT
+            split=config_train.TRAIN_SPLIT,
         )
         self.sampler_train = DistributedSampler(self.dataset_train)
         self.sampler_test = DistributedSampler(self.dataset_test)
@@ -94,7 +95,7 @@ class Trainer:
             pin_memory=True,
             num_workers=config_train.NUM_WORKERS,
             sampler=self.sampler_train,
-            shuffle=False
+            shuffle=False,
         )
         self.dataloader_test = DataLoader(
             self.dataset_test,
@@ -102,7 +103,7 @@ class Trainer:
             pin_memory=True,
             num_workers=config_train.NUM_WORKERS,
             sampler=self.sampler_test,
-            shuffle=False
+            shuffle=False,
         )
 
         # Optimizer, Scheduler, Page 17 of the paper.
@@ -110,7 +111,7 @@ class Trainer:
             params=self.model.parameters(),
             betas=(0.9, 0.999),
             weight_decay=config_optim.WEIGHT_DECAY,
-            lr=config_optim.LR
+            lr=config_optim.LR,
         )
         if "OPTIMIZER_STATE" in self.metadata.keys():
             self.optimizer.load_state_dict(self.metadata["OPTIMIZER_STATE"])
@@ -124,9 +125,9 @@ class Trainer:
         self.model = DDP(
             self.model,
             device_ids=[self.local_rank],
-            find_unused_parameters=True
+            find_unused_parameters=True,
         )
-        
+
     def train(self):
         """Trains the model for max_epochs."""
         for epoch in range(self.epochs_run + 1, self.max_epochs):
@@ -155,16 +156,18 @@ class Trainer:
         self.model.train()
         for b_id, (image, gt_instances) in enumerate(self.dataloader_train):
             # 1x3x1024x1024 ; 1xNx1024x1024
-            image: torch.Tensor = image.to(self.local_rank)
-            gt_instances: torch.Tensor = gt_instances.to(self.local_rank)
+            image = image.to(self.local_rank)
+            gt_instances = gt_instances.to(self.local_rank)
             loss = self._run_batch(
                 image, gt_instances.permute(1, 0, 2, 3), train=True
             )
             epoch_loss_train += loss
             # Logging losses
             self.logger.info(
-                (f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
-                 f"Training Loss {loss:.5f}")
+                (
+                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
+                    f"Training Loss {loss:.5f}"
+                )
             )
 
         # Testing
@@ -176,23 +179,25 @@ class Trainer:
                 image, gt_instances.permute(1, 0, 2, 3), train=False
             )
             self.logger.info(
-                (f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
-                 f"Testing Loss {loss:.5f}")
+                (
+                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
+                    f"Testing Loss {loss:.5f}"
+                )
             )
             epoch_loss_test += loss
-        
+
         # Logging epoch losses to tensorboard
         self.writer.add_scalar(
             f"avg. Loss/Train[GPU{self.local_rank}]",
             epoch_loss_train / train_n,
-            epoch
+            epoch,
         )
         self.writer.add_scalar(
             f"avg. Loss/Test[GPU{self.local_rank}]",
             epoch_loss_test / test_n,
-            epoch
+            epoch,
         )
-        
+
     def _run_batch(
         self, image: torch.Tensor, gt_instances: torch.Tensor, train: bool
     ) -> float:
@@ -203,7 +208,7 @@ class Trainer:
             gt_instances (torch.Tensor): ground truth instances of
                 shape Nx1x1024x1024.
             train (bool): Whether to train or inference.
-        
+
         Returns:
             (float): Average Batch Loss.
         """
@@ -211,7 +216,10 @@ class Trainer:
         # initial step + its + last step
         accumulation_steps = self.its + 3
         # sample a step inbetween the algo to only prompt with mask
-        only_mask_step = torch.randint(1, self.its, (1, )).item()
+        only_mask_step = torch.randint(1, self.its, (1,)).item()
+        low_res_masks = torch.zeros(
+            (gt_instances.shape[0], 1, 256, 256), device=self.local_rank
+        )
         with torch.set_grad_enabled(train), torch.autocast("cuda"):
             # Gradient accumulation
             with self.model.no_sync():
@@ -224,42 +232,51 @@ class Trainer:
                         # Interactive step
                         points = sample_points_from_error_region(
                             gt_instances.detach(),
-                            self.model.module.upscale(low_res_masks.detach())
+                            self.model.module.upscale(low_res_masks.detach()),
                         )
                     low_res_masks, iou_pred = self.model(
                         image,
                         points=points if i != only_mask_step else None,
-                        masks=low_res_masks.detach() if i !=0 else None
+                        masks=low_res_masks.detach() if i != 0 else None,
                     )
                     gt_iou = compute_iou(
                         self.model.module.upscale(low_res_masks.detach()),
-                        gt_instances
+                        gt_instances,
                     )
                     # Loss is averaged over accumulation steps.
-                    loss = self.compute_loss(
-                        self.model.module.upscale(low_res_masks, False),
-                        gt_instances, iou_pred, gt_iou
-                    ) / accumulation_steps
+                    loss = (
+                        self.compute_loss(
+                            self.model.module.upscale(low_res_masks, False),
+                            gt_instances,
+                            iou_pred,
+                            gt_iou,
+                        )
+                        / accumulation_steps
+                    )
                     average_loss += loss.item()
                     if train:
                         self.scaler.scale(loss).backward()
-            
+
             # Last step is out of the no_sync context to sync accumlated grads.
             points = sample_points_from_error_region(
                 gt_instances.detach(),
-                self.model.module.upscale(low_res_masks.detach())
+                self.model.module.upscale(low_res_masks.detach()),
             )
             low_res_masks, iou_pred = self.model(
                 image, points=None, masks=low_res_masks.detach()
             )
             gt_iou = compute_iou(
-                self.model.module.upscale(low_res_masks.detach()),
-                gt_instances
+                self.model.module.upscale(low_res_masks.detach()), gt_instances
             )
-            loss = self.compute_loss(
-                self.model.module.upscale(low_res_masks, False),
-                gt_instances, iou_pred, gt_iou
-            ) / accumulation_steps
+            loss = (
+                self.compute_loss(
+                    self.model.module.upscale(low_res_masks, False),
+                    gt_instances,
+                    iou_pred,
+                    gt_iou,
+                )
+                / accumulation_steps
+            )
             if train:
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
@@ -274,7 +291,7 @@ class Trainer:
             "MODEL_STATE": self.model.module.state_dict(),
             "EPOCHS_RUN": epoch,
             "OPTIMIZER_STATE": self.optimizer.state_dict(),
-            "SCHEDULER_STATE": self.scheduler.state_dict()
+            "SCHEDULER_STATE": self.scheduler.state_dict(),
         }
         torch.save(snapshot, self.snapshot_path)
         self.logger.info(
@@ -285,8 +302,8 @@ class Trainer:
         self,
         logits: torch.Tensor,
         gt_instances: torch.Tensor,
-        iou_pred: torch.Tensor, 
-        gt_iou: torch.Tensor
+        iou_pred: torch.Tensor,
+        gt_iou: torch.Tensor,
     ) -> torch.Tensor:
         """
         Computes loss: DiceLoss + 20xFocalLoss + MSE(IoU)
@@ -297,7 +314,7 @@ class Trainer:
             iou_pred (torch.Tensor): Predicted IoU scores Nx1x1.
             gt_iou (torch.Tensor): Ground truth IoU scores Nx1x1.
         """
-        loss = (self.mask_head_loss(logits, gt_instances)
-                + F.mse_loss(iou_pred, gt_iou))
+        loss = self.mask_head_loss(logits, gt_instances) + F.mse_loss(
+            iou_pred, gt_iou
+        )
         return loss
-    

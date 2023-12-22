@@ -1,46 +1,49 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from torchvision.io import read_image  
+from torchvision.io import read_image
 from segment_anything.utils.transforms import ResizeLongestSide
 from segment_anything.utils.amg import rle_to_mask
-import os, json
+import os
+import json
 from .utils import pad_to_square, normalize_pixels
 
 import random
+
 
 class MyoData(Dataset):
     def __init__(
         self,
         data_dir: str,
         max_instances: int,
-        train: bool=True,
-        split: float=0.8
+        train: bool = True,
+        split: float = 0.8,
     ):
         self.resize_longest_side = ResizeLongestSide(1024)
         self.data_dir = data_dir
         self.train = train
         self.max_instances = max_instances
         self.segmentations = [
-            fn for fn in os.listdir(data_dir) if fn.endswith('.json')
+            fn for fn in os.listdir(data_dir) if fn.endswith(".json")
         ]
         # Filter out images with just a few annotations
         self.segmentations = [
-            fn for fn in self.segmentations
+            fn
+            for fn in self.segmentations
             if len(
-                    json.load(
-                        open(os.path.join(self.data_dir, fn), 'r')
-                    )["annotations"]
-                ) > 5
+                json.load(open(os.path.join(self.data_dir, fn), "r"))[
+                    "annotations"
+                ]
+            )
+            > 5
         ]
         random.seed(0)
         _ = random.shuffle(self.segmentations)
         split_index = int(split * len(self.segmentations))
         if train:
-            self.segmentations = self.segmentations[ :split_index]
+            self.segmentations = self.segmentations[:split_index]
         else:
-            self.segmentations = self.segmentations[split_index: ]
-        
+            self.segmentations = self.segmentations[split_index:]
 
     def transform_image(self, image: np.ndarray) -> torch.Tensor:
         """
@@ -48,16 +51,14 @@ class MyoData(Dataset):
             - Resize longest side to 1024
             - Convert to torch.Tensor and permute to (H, W, C)
             - Normalize pixel values and pad to a square input
-        
+
         Returns:
             (torch.Tensor): Preprocessed image of shape (C, H, W).
         """
         image = self.resize_longest_side.apply_image(image)
         image = torch.from_numpy(image).permute(2, 0, 1)
         image = normalize_pixels(
-            image,
-            mean=[13.21, 21.91, 15.04],
-            std=[7.26, 16.40, 12.12]
+            image, mean=[13.21, 21.91, 15.04], std=[7.26, 16.40, 12.12]
         )
         image = pad_to_square(image)
         return image
@@ -68,7 +69,7 @@ class MyoData(Dataset):
             - Resize longest side to 1024
             - Convert to torch.Tensor
             - Pad to a square input
-        
+
         Returns:
             (torch.Tensor): Preprocessed mask of shape (H, W).
         """
@@ -76,14 +77,13 @@ class MyoData(Dataset):
         masks = torch.from_numpy(masks)
         masks = pad_to_square(masks)
         return masks
-    
 
     def __len__(self) -> int:
         return len(self.segmentations)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         seg = json.load(
-            open(os.path.join(self.data_dir, self.segmentations[idx]), 'r')
+            open(os.path.join(self.data_dir, self.segmentations[idx]), "r")
         )
         image = read_image(
             os.path.join(self.data_dir, seg["patch"]["file_name_patch"])
@@ -98,7 +98,7 @@ class MyoData(Dataset):
         idxs = torch.multinomial(
             torch.ones(len(annotations)),
             num_samples=min(self.max_instances, len(annotations)),
-            replacement=False
+            replacement=False,
         )
         annotations = [annotations[i] for i in idxs]
 
@@ -108,6 +108,6 @@ class MyoData(Dataset):
         ]
         # Drop empty masks
         transformed_masks = [mk for mk in transformed_masks if mk.sum() > 0]
-        assert(image.shape[-2: ] == transformed_masks[0].shape)
+        assert image.shape[-2:] == transformed_masks[0].shape
         # return (C, 1024, 1024), (N, 1024, 1024)
         return image, torch.stack(transformed_masks)
