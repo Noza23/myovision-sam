@@ -22,3 +22,5 @@ jobs:
     - name: Test with coverage
       run: |
         coverage run -m pytest
+        coverage report -m
+        rm -rf .coverage
