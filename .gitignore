@@ -9,8 +9,8 @@ exp.ipynb
 
 # hydra
 .hydra/
-test*
 
+test.ipynb
 # models
 model/*.pth
 snapshot/*
