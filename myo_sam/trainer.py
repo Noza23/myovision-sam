@@ -165,8 +165,8 @@ class Trainer:
             # Logging losses
             self.logger.info(
                 (
-                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
-                    f"Training Loss {loss:.5f}"
+                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} |"
+                    f" Training Loss {loss:.5f}"
                 )
             )
 
@@ -180,8 +180,8 @@ class Trainer:
             )
             self.logger.info(
                 (
-                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} | "
-                    f"Testing Loss {loss:.5f}"
+                    f"[GPU{self.local_rank}] | Epoch {epoch} | Batch {b_id} |"
+                    f" Testing Loss {loss:.5f}"
                 )
             )
             epoch_loss_test += loss

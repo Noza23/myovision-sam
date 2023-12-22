@@ -37,6 +37,7 @@ class MyoData(Dataset):
             )
             > 5
         ]
+        # Random shuffle before splitting
         random.seed(0)
         _ = random.shuffle(self.segmentations)
         split_index = int(split * len(self.segmentations))
@@ -90,7 +91,7 @@ class MyoData(Dataset):
         )
         image = self.transform_image(image.permute(1, 2, 0).numpy())
 
-        # Randomly sample n instances (Paper suggest 64)
+        # Randomly sample n instances for training (Paper suggest 64)
         annotations = seg["annotations"]
         if not self.train:
             # Test set should be deterministic
