@@ -5,6 +5,7 @@ from functools import cached_property
 
 from pydantic import BaseModel, Field, computed_field
 import math
+import statistics
 import cv2
 
 
@@ -100,18 +101,49 @@ class MyoObjects(BaseModel):
 
 
 class Myotube(MyoObject):
-    r_channel: list[int] = Field(description="R channel of the myotube.")
-    g_channel: list[int] = Field(description="G channel of the myotube.")
-    b_channel: list[int] = Field(description="B channel of the myotube.")
+    rgb_repr: list[list[int]] = Field(description="RGB representation")
 
     @computed_field  # type: ignore[misc]
     @property
-    def min(self) -> tuple[int, int, int]:
-        """Minimum intensity of the myotube."""
-        return (min(self.r_channel), min(self.g_channel), min(self.b_channel))
+    def rgb_min(self) -> tuple:
+        """Minimum intensity of the myotube per channel."""
+        return tuple(min(c) for c in zip(*self.rgb_repr))
 
-    """A detected myotube."""
-    pass
+    @computed_field  # type: ignore[misc]
+    @property
+    def rgb_max(self) -> tuple:
+        """Maximum intensity of the myotube per channel."""
+        return tuple(max(c) for c in zip(*self.rgb_repr))
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def rgb_mean(self) -> tuple:
+        """Mean intensity of the myotube per channel."""
+        return tuple(statistics.mean(c) for c in zip(*self.rgb_repr))
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def rgb_median(self) -> tuple:
+        """Median intensity of the myotube per channel."""
+        return tuple(statistics.median(c) for c in zip(*self.rgb_repr))
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def rgb_mode(self) -> tuple:
+        """Mode intensity of the myotube per channel."""
+        return tuple(statistics.mode(c) for c in zip(*self.rgb_repr))
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def rgb_std(self) -> tuple:
+        """Standard deviation of the myotube per channel."""
+        return tuple(statistics.stdev(c) for c in zip(*self.rgb_repr))
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def integrated_density_rgb(self) -> tuple:
+        """Integrated density of the myotube per channel."""
+        return tuple(sum(c) for c in zip(*self.rgb_repr))
 
 
 class Myoblast(MyoObject):
