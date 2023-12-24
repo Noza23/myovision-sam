@@ -1,89 +1,83 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
-from . import Myoblast, MyoObject
-
-
-# class Nuclei(Myoblast):
-#     """A detected nuclei should be inside a myotube by at least 95%."""
-#     myotube_id: int = Field(
-#         description="Identifer of the myotube the nuclei belongs to."
-#     )
-#     @classmethod
-#     def compute_nuclei(cls, myotubes: MyoObjects, myoblasts: MyoObjects) -> "Nuclei":
-#         # Binarize myotubes on full scale ()
-#         pass
-
-
-class NucleisInMyotube(BaseModel):
-    """A detected nuclei should be inside a myotube by at least 95%."""
-
-    myotube_id: int = Field(
-        description="Identifer of the myotube the nuclei belongs to."
-    )
-    nucleis: list[Myoblast] = Field(description="The nucleis of a myotube.")
-
-    @classmethod
-    def identify_nucleis(
-        cls, myotube: MyoObject, myoblasts: list[MyoObject]
-    ) -> "NucleisInMyotube":
-        nucleis = [m for m in myoblasts if m.centroid in myotube.roi_coords]
-        return cls(myotube_id=myotube.identifier, nucleis=nucleis)
-
-    # def identify_clusters(self) -> list[list[MyoObject]]:
-    #     for nuclei in self.nucleis:
-    #         pass
-    #         #  Start from first myoblast and build up a cluster iteratively
-    #     pass
-
-
-# Clusters of Nuclei....
-
-
-# class NucleiCluster(MyoObjects):
-#     """A detected nuclei cluster."""
-#     @classmethod
-#     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiCluster":
-#         pass
-
-# class NucleiClusters(BaseModel):
-#     """The nuclei clusters of a MyoSam inference."""
-#     nuclei_clusters: list[NucleiCluster] = Field(
-#         description="The nuclei clusters of a MyoSam inference."
-#     )
-#     def __len__(self) -> int:
-#         return len(self.nuclei_clusters)
+from .base import Myotubes, Nucleis, NucleiClusters
+from collections import Counter
 
 
 class InformationMetrics(BaseModel):
     """The information metrics of a MyoSam inference."""
 
-    # Myotubes
-    myotube_count: int = Field(description="The number of myotubes.")
-    myotube_areas: list[int] = Field(
-        description="The areas of the myotubes, sorted by the identifier.",
-    )
+    myotubes: Myotubes = Field(description="The myotubes.")
+    nucleis: Nucleis = Field(description="The nucleis.")
+    nuclei_clusters: NucleiClusters = Field(description="nuclei clusters.")
 
-    # Myoblasts: Everywhere in the image
-    myoblast_count: int = Field(description="The number of myoblasts.")
-    myoblast_areas: list[int] = Field(
-        description="The areas of the myoblasts, sorted by the identifier.",
-    )
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_fusion_index(self):
+        return (
+            self.nucleis.num_nuclei_inside_myotube / self.nucleis.num_myoblasts
+        )
 
-    # Nuclei: Myoblasts touching the myotube by at least 95%
-    nuclei_count: int = Field(description="The number of nuclei.")
-    nuclei_areas: list[int] = Field(
-        description="The areas of the nuclei, sorted by the identifier.",
-    )
+    @computed_field  # type: ignore[misc]
+    @property
+    def num_nuclei_per_instance(self) -> dict[int, int]:
+        """The number of nuclei per myotube instance"""
+        counter = Counter([n.myotube_id for n in self.nucleis.myo_objects])
+        myotube_ids = [m.identifier for m in self.myotubes.myo_objects]
+        return {m_id: counter[m_id] for m_id in myotube_ids}
 
-    # Nuclei: Nucleis overlapping by at least 10%
-    nuclei_clusters_count: int = Field(
-        description="The number of nuclei clusters."
-    )
+    @computed_field  # type: ignore[misc]
+    @property
+    def num_nuclei_clusters(self) -> int:
+        """The number of nuclei clusters."""
+        return len(self.nuclei_clusters)
 
-    # @classmethod
-    # def compute_metrics(
-    #     cls, myotubes: MyoObjects, myoblasts: MyoObjects
-    # ) -> "InformationMetrics":
-    #     nucleis: Nucleis = cls.compute_nucleis(myotubes, myoblasts)
+    @computed_field  # type: ignore[misc]
+    @property
+    def num_nuclei_per_nuclei_cluster(self) -> dict[int, int]:
+        """The number of nuclei per nuclei cluster."""
+        return dict(
+            Counter([n.cluster_id for n in self.nuclei_clusters.clusters])
+        )
 
-    #     pass
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_myotubes(self) -> int:
+        """The number of myotubes."""
+        return len(self.myotubes)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_myotubes_area(self) -> int:
+        """The total area of the myotubes."""
+        return self.myotubes.area
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_nucleis(self) -> int:
+        """The number of nuclei."""
+        return len(self.nucleis)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_nucleis_area(self) -> int:
+        """The total area of the nuclei."""
+        return self.nucleis.area
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_myoblasts(self) -> int:
+        """The number of myoblasts."""
+        return self.nucleis.num_myoblasts
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_myoblasts_area(self) -> int:
+        """The total area of the myoblasts."""
+        return self.nucleis.myoblasts_area
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_nucleis_inside_myotubes_area(self) -> int:
+        """The total area of the nuclei inside myotubes."""
+        return self.nucleis.nucleis_inside_myotubes_area

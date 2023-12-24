@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from . import MyoObject
+from .base import MyoObject
 
 
 class PerformanceMetrics(BaseModel):
