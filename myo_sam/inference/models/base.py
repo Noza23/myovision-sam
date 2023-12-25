@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Union
+from typing import Union, Optional
 import math
 import statistics
 from collections import defaultdict
@@ -8,7 +8,11 @@ from pydantic import BaseModel, Field, computed_field
 import cv2
 import numpy as np
 
-from .utils import object_overlaps_box, object_overlaps_polygon
+from .utils import (
+    object_overlaps_box,
+    object_overlaps_polygon,
+    object_overlaps_by_percentage,
+)
 
 
 class MyoObject(BaseModel):
@@ -111,6 +115,7 @@ class MyoObject(BaseModel):
 
 class Myotube(MyoObject):
     rle_mask: list[int] = Field(description="RLE mask of the myoobject.")
+    pred_iou: Optional[float] = Field(description="Predicted IoU")
     rgb_repr: list[list[int]] = Field(description="RGB representation")
 
     @computed_field  # type: ignore[misc]
@@ -168,6 +173,10 @@ class Nuclei(MyoObject):
     myotube_ids: list[Union[int, None]] = Field(
         description="Identifer of the myotubes the nuclei belongs to."
     )
+    centroid: tuple[float, float] = Field(
+        description="Centroid of the nuclei. (x, y)"
+    )
+    prob: Optional[float] = Field(description="Probability of the nuclei pred")
 
 
 class MyoObjects(BaseModel):
@@ -231,12 +240,18 @@ class Nucleis(MyoObjects):
 
     @classmethod
     def parse_nucleis(
-        cls, roi_coords: np.ndarray, myotubes: Myotubes
+        cls,
+        roi_coords: np.ndarray,
+        centroids: np.ndarray,
+        myotubes: Myotubes,
+        probs: Optional[np.ndarray] = None,
     ) -> "Nucleis":
         """
         Parses the nucleis from the roi_coords and myotubes.
         Args:
             roi_coords (np.array): N x n_conts x 2 array of points. (x, y)
+            centroids (np.array): N x 2 array of centroids. (x, y)
+            probs (np.array): (N, ) array of probabilities.
             myotubes (Myotubes): The myotubes.
         """
         # np.flip(myoblast_rois.transpose(0, 2, 1), axis=2).astype(np.uint16)
@@ -244,14 +259,18 @@ class Nucleis(MyoObjects):
         mapp_reverse = defaultdict(list)
         for myotube in myotubes.myo_objects:
             box = cv2.boundingRect(myotube.roi_coords_np)
-            msk = np.where(object_overlaps_box(roi_coords, box))[0]
-            nucleis = np.apply_along_axis(
+            idx = np.where(object_overlaps_box(centroids[:, None, :], box))[0]
+            msk = np.apply_along_axis(
                 object_overlaps_polygon,
                 -1,
-                roi_coords[msk].reshape(len(msk), -1),
+                centroids[idx],
                 myotube.roi_coords_np,
             )
-            for i in msk[nucleis]:
+            msk = [
+                object_overlaps_by_percentage(p, box, myotube.roi_coords_np)
+                for p in roi_coords[idx[msk]][:, :, None, :]
+            ]
+            for i in idx[msk]:
                 mapp[i].append(myotube.identifier)
                 mapp_reverse[myotube.identifier].append(i)
 
@@ -261,6 +280,8 @@ class Nucleis(MyoObjects):
                 roi_coords=coords,
                 measure_unit=1,
                 myotube_id=mapp[i],
+                centroid=centroids[i],
+                prob=probs[i] if probs is not None else None,
             )
             for i, coords in enumerate(roi_coords)
         ]
@@ -271,13 +292,8 @@ class NucleiCluster(MyoObjects):
     """A detected nuclei cluster."""
 
     cluster_id: int = Field("Cluster identifier")
+    myotube_id: int = Field("Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
-
-    @classmethod
-    def compute_clusters(cls, nucleis: Nucleis) -> "NucleiCluster":
-        """Computes the clusters of nucleis."""
-
-        raise NotImplementedError
 
 
 class NucleiClusters(BaseModel):
@@ -287,3 +303,13 @@ class NucleiClusters(BaseModel):
 
     def __len__(self) -> int:
         return len(self.clusters)
+
+    @classmethod
+    def compute_clusters(cls, nucleis: Nucleis) -> "NucleiClusters":
+        """Computes the clusters of nucleis."""
+        mapping = nucleis.mapp_reverse
+        for myo_id, nucleis_ids in mapping.items():
+            if nucleis_ids:
+                pass
+
+        raise NotImplementedError
