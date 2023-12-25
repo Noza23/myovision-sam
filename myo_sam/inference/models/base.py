@@ -1,33 +1,35 @@
 from functools import cached_property
-from typing import Optional
-
-from pydantic import BaseModel, Field, computed_field
+from typing import Union
 import math
 import statistics
+from collections import defaultdict
+
+from pydantic import BaseModel, Field, computed_field
 import cv2
 import numpy as np
+
+from .utils import object_overlaps_box, object_overlaps_polygon
 
 
 class MyoObject(BaseModel):
     """Base Class for MyoObjects: Myotubes and Nucleis."""
 
     identifier: int = Field(description="Identifier of the myoobject.")
-    rle_mask: list[int] = Field(description="RLE mask of the myoobject.")
     # roi_coords are computed using cv2.findContours conts[0].tolist()
     # cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    roi_coords: list[list[int]] = Field(description="ROI boundaries")
+    roi_coords: list[list[int]] = Field(description="ROI boundaries")  # (x, y)
     measure_unit: float = Field(description="Measure unit of the myoobject.")
 
     @cached_property
     def roi_coords_np(self) -> np.ndarray:
-        """ROI coordinates as a numpy array."""
-        return np.array(self.roi_coords)[:, np.newaxis, :]
+        """ROI coordinates as a numpy array. (N, 1, 2)"""
+        return np.array(self.roi_coords)[:, None, :]
 
     @computed_field  # type: ignore[misc]
     @property
     def area(self) -> float:
         """Area of the myoobject."""
-        return sum(self.rle_mask[1::2]) * self.measure_unit
+        return cv2.contourArea(self.roi_coords_np) * self.measure_unit
 
     @computed_field  # type: ignore[misc]
     @property
@@ -108,7 +110,14 @@ class MyoObject(BaseModel):
 
 
 class Myotube(MyoObject):
+    rle_mask: list[int] = Field(description="RLE mask of the myoobject.")
     rgb_repr: list[list[int]] = Field(description="RGB representation")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def area(self) -> float:
+        """Area of the myoobject."""
+        return sum(self.rle_mask[1::2]) * self.measure_unit
 
     @computed_field  # type: ignore[misc]
     @property
@@ -156,8 +165,8 @@ class Myotube(MyoObject):
 class Nuclei(MyoObject):
     """A detected nuclei."""
 
-    myotube_id: Optional[int] = Field(
-        description="Identifer of the myotube the nuclei belongs to."
+    myotube_ids: list[Union[int, None]] = Field(
+        description="Identifer of the myotubes the nuclei belongs to."
     )
 
 
@@ -189,12 +198,18 @@ class Nucleis(MyoObjects):
     """The nucleis of a MyoSam inference."""
 
     myo_objects: list[Nuclei] = Field("List of nucleis.")
+    mapp: dict[int, list[int]] = Field(
+        description="Mapping of the nucleis to the myotubes."
+    )
+    mapp_reverse: dict[int, list[int]] = Field(
+        description="Mapping of the myotubes to the nucleis."
+    )
 
     @computed_field  # type: ignore[misc]
     @property
     def num_myoblasts(self) -> int:
         """Number of myoblasts."""
-        return len([m for m in self.myo_objects if m.myotube_id is None])
+        return len([m for m in self.myo_objects if not m.myotube_ids])
 
     @computed_field  # type: ignore[misc]
     @property
@@ -206,13 +221,50 @@ class Nucleis(MyoObjects):
     @property
     def myoblasts_area(self) -> float:
         """Area of the myoblasts."""
-        return sum([m.area for m in self.myo_objects if m.myotube_id is None])
+        return sum([m.area for m in self.myo_objects if not m.myotube_ids])
 
     @computed_field  # type: ignore[misc]
     @property
     def nucleis_inside_myotubes_area(self) -> float:
         """Area of the myotubes."""
         return self.area - self.myoblasts_area
+
+    @classmethod
+    def parse_nucleis(
+        cls, roi_coords: np.ndarray, myotubes: Myotubes
+    ) -> "Nucleis":
+        """
+        Parses the nucleis from the roi_coords and myotubes.
+        Args:
+            roi_coords (np.array): N x n_conts x 2 array of points. (x, y)
+            myotubes (Myotubes): The myotubes.
+        """
+        # np.flip(myoblast_rois.transpose(0, 2, 1), axis=2).astype(np.uint16)
+        mapp = defaultdict(list)
+        mapp_reverse = defaultdict(list)
+        for myotube in myotubes.myo_objects:
+            box = cv2.boundingRect(myotube.roi_coords_np)
+            msk = np.where(object_overlaps_box(roi_coords, box))[0]
+            nucleis = np.apply_along_axis(
+                object_overlaps_polygon,
+                -1,
+                roi_coords[msk].reshape(len(msk), -1),
+                myotube.roi_coords_np,
+            )
+            for i in msk[nucleis]:
+                mapp[i].append(myotube.identifier)
+                mapp_reverse[myotube.identifier].append(i)
+
+        nucleis = [
+            Nuclei(
+                identifier=i,
+                roi_coords=coords,
+                measure_unit=1,
+                myotube_id=mapp[i],
+            )
+            for i, coords in enumerate(roi_coords)
+        ]
+        return cls(myo_objects=nucleis, mapp=mapp, mapp_reverse=mapp_reverse)
 
 
 class NucleiCluster(MyoObjects):
@@ -224,6 +276,7 @@ class NucleiCluster(MyoObjects):
     @classmethod
     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiCluster":
         """Computes the clusters of nucleis."""
+
         raise NotImplementedError
 
 
