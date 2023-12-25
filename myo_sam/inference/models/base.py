@@ -27,7 +27,7 @@ class MyoObject(BaseModel):
     @cached_property
     def roi_coords_np(self) -> np.ndarray:
         """ROI coordinates as a numpy array. (N, 1, 2)"""
-        return np.array(self.roi_coords)[:, None, :]
+        return np.array(self.roi_coords, dtype=np.int32)[:, None, :]
 
     @computed_field  # type: ignore[misc]
     @property
@@ -266,9 +266,10 @@ class Nucleis(MyoObjects):
                 centroids[idx],
                 myotube.roi_coords_np,
             )
+            idx = idx[msk]
             msk = [
                 object_overlaps_by_percentage(p, box, myotube.roi_coords_np)
-                for p in roi_coords[idx[msk]][:, :, None, :]
+                for p in roi_coords[idx][:, :, None, :]
             ]
             for i in idx[msk]:
                 mapp[i].append(myotube.identifier)
