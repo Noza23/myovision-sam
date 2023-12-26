@@ -39,7 +39,7 @@ class MyoObject(BaseModel):
     @property
     def convex_area(self) -> float:
         """Convex area of the myoobject."""
-        return cv2.contourArea([self.convex_hull]) * self.measure_unit
+        return cv2.contourArea(self.convex_hull) * self.measure_unit
 
     @computed_field  # type: ignore[misc]
     @property
@@ -67,13 +67,13 @@ class MyoObject(BaseModel):
 
     @computed_field  # type: ignore[misc]
     @property
-    def max_feret_diameter(self):
+    def max_feret_diameter(self) -> float:
         """Feret's diameter of the myoobject."""
         return max(self.feret_bound_box)
 
     @computed_field  # type: ignore[misc]
     @property
-    def min_feret_diameter(self):
+    def min_feret_diameter(self) -> float:
         """Feret's diameter of the myoobject."""
         return min(self.feret_bound_box)
 
@@ -85,12 +85,6 @@ class MyoObject(BaseModel):
 
     @computed_field  # type: ignore[misc]
     @property
-    def centroid(self) -> tuple[float, float]:
-        """Centroid of the myoobject. (x, y)"""
-        return self.elipse[0]
-
-    @computed_field  # type: ignore[misc]
-    @property
     def convex_hull(self) -> list[list[list[int]]]:
         """Convex hull of the myoobject."""
         return cv2.convexHull(self.roi_coords_np)
@@ -98,9 +92,10 @@ class MyoObject(BaseModel):
     @cached_property
     def feret_bound_box(self) -> list[int]:
         """Feret's bounding box of the myoobject."""
-        _, eig_vecs = cv2.PCACompute(self.roi_coords_np, mean=None)
-        coords = np.matmul(eig_vecs, np.array(self.roi_coords_np).T)
-        return cv2.boundingRect(coords.T)[2:]
+        conts = self.roi_coords_np.squeeze().astype(np.float32)
+        _, eig_vecs = cv2.PCACompute(conts, mean=None)
+        coords = np.matmul(eig_vecs, conts.T).T
+        return cv2.boundingRect(coords)[2:]
 
     @cached_property
     def elipse(self) -> tuple[tuple[float, float], tuple[float, float], float]:
@@ -114,15 +109,15 @@ class MyoObject(BaseModel):
 
 
 class Myotube(MyoObject):
-    rle_mask: list[int] = Field(description="RLE mask of the myoobject.")
     pred_iou: Optional[float] = Field(description="Predicted IoU")
+    stability: Optional[float] = Field(description="Stability")
     rgb_repr: list[list[int]] = Field(description="RGB representation")
 
     @computed_field  # type: ignore[misc]
     @property
-    def area(self) -> float:
-        """Area of the myoobject."""
-        return sum(self.rle_mask[1::2]) * self.measure_unit
+    def centroid(self) -> tuple[float, float]:
+        """Centroid of the myoobject. (x, y)"""
+        return self.elipse[0]
 
     @computed_field  # type: ignore[misc]
     @property

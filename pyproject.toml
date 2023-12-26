@@ -16,7 +16,7 @@ license = {file = "LICENSE"}
 
 [project.optional-dependencies]
 dev = ["mypy", "pre-commit", "ruff"]
-test = ["coverage", "pytest", "torch>=1.12.0"]
+test = ["coverage", "pytest", "torch>=1.12.0", "numpy>=1.25.1"]
 
 dependencies = [
   "torch>=1.12.0",
