@@ -3,6 +3,8 @@ from typing import Union, Optional
 import math
 import statistics
 from collections import defaultdict
+import itertools
+import networkx as nx
 
 from pydantic import BaseModel, Field, computed_field
 import cv2
@@ -12,6 +14,7 @@ from .utils import (
     object_overlaps_box,
     object_overlaps_polygon,
     object_overlaps_by_perc,
+    vec_to_sym_matrix,
 )
 
 
@@ -296,7 +299,7 @@ class Nucleis(MyoObjects):
 class NucleiCluster(MyoObjects):
     """A detected nuclei cluster."""
 
-    cluster_id: int = Field("Cluster identifier")
+    cluster_id: str = Field("Cluster identifier")
     myotube_id: int = Field("Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
 
@@ -309,12 +312,46 @@ class NucleiClusters(BaseModel):
     def __len__(self) -> int:
         return len(self.clusters)
 
+    def __getitem__(self, idx: int) -> NucleiCluster:
+        return self.clusters[idx]
+
+    def __iter__(self):
+        return iter(self.clusters)
+
     @classmethod
     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiClusters":
         """Computes the clusters of nucleis."""
         mapping = nucleis.mapp_reverse
+        nuclei_clusters = []
         for myo_id, nucleis_ids in mapping.items():
-            if nucleis_ids:
-                pass
-
-        raise NotImplementedError
+            if len(nucleis_ids) < 2:
+                continue
+            pairs = itertools.combinations(nucleis_ids, 2)
+            lower_tri = np.array(
+                [
+                    object_overlaps_polygon(
+                        nucleis[x].roi_coords_np.reshape(-1).astype(np.int16),
+                        nucleis[y].roi_coords_np,
+                    )
+                    for x, y in pairs
+                ]
+            )
+            if not lower_tri.any():
+                continue
+            sym_matrix = vec_to_sym_matrix(lower_tri, len(nucleis_ids))
+            graph = nx.from_numpy_array(sym_matrix)
+            clusters = [
+                list(x)
+                for x in list(nx.connected_components(graph))
+                if len(x) > 1
+            ]
+            for i, cluster in enumerate(clusters):
+                cluster_id = str(myo_id) + "_" + str(i)
+                myo_objects = [nucleis[nucleis_ids[i]] for i in cluster]
+                clust = NucleiCluster(
+                    cluster_id=cluster_id,
+                    myotube_id=myo_id,
+                    myo_objects=myo_objects,
+                )
+                nuclei_clusters.append(clust)
+        return cls(clusters=nuclei_clusters)

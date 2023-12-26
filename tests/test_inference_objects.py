@@ -1,5 +1,11 @@
 import numpy as np
-from myo_sam.inference.models.base import Nuclei, Myotube, Nucleis, Myotubes
+from myo_sam.inference.models.base import (
+    Nuclei,
+    Myotube,
+    Nucleis,
+    Myotubes,
+    NucleiClusters,
+)
 
 nuclei_pred = np.load(
     "tests/data/stardist_res.npy", allow_pickle=True
@@ -44,6 +50,18 @@ def get_myotubes():
     )
 
 
+def get_nucleis():
+    myotubes = get_myotubes()
+    return Nucleis.parse_nucleis(
+        roi_coords=np.flip(
+            nuclei_pred["coord"].astype(np.int32).transpose(0, 2, 1), axis=2
+        ),
+        centroids=np.flip(nuclei_pred["points"].astype(np.int16), 1),
+        myotubes=myotubes,
+        probs=nuclei_pred["prob"],
+    )
+
+
 def test_nuclei():
     assert Nuclei(**nuclei_info)
 
@@ -58,15 +76,12 @@ def test_myotubes():
     assert isinstance(myotubes, Myotubes)
 
 
+def test_parse_clusters():
+    clusters = NucleiClusters.compute_clusters(get_nucleis())
+    assert isinstance(clusters, NucleiClusters)
+
+
 def test_parse_nucleis():
-    myotubes = get_myotubes()
-    nucleis = Nucleis.parse_nucleis(
-        roi_coords=np.flip(
-            nuclei_pred["coord"].astype(np.int32).transpose(0, 2, 1), axis=2
-        ),
-        centroids=np.flip(nuclei_pred["points"].astype(np.int16), 1),
-        myotubes=myotubes,
-        probs=nuclei_pred["prob"],
-    )
+    nucleis = get_nucleis()
     assert len(nucleis) == len(nuclei_pred["coord"])
     assert isinstance(nucleis, Nucleis)

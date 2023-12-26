@@ -77,5 +77,17 @@ def object_overlaps_by_perc(
     return cv2.bitwise_and(source, target).sum() / source.sum() >= percentage
 
 
-def identify_clusters(points: np.ndarray) -> np.ndarray:
-    raise NotImplementedError
+def vec_to_sym_matrix(vec: np.ndarray, ms: int) -> np.ndarray:
+    """
+    Takes vectorized lower triangular matrix and returns symmetric matrix
+
+    Args:
+        vec (np.ndarray): vectorized lower triangular matrix (n, )
+        ms (int): symmetric matrix size
+    """
+    assert vec.shape[0] == ms * (ms - 1) / 2
+    sym_matrix = np.zeros((ms, ms), dtype=bool)
+    sym_matrix[np.triu_indices(ms, 1)] = vec
+    sym_matrix = sym_matrix | sym_matrix.T
+    np.fill_diagonal(sym_matrix, True)
+    return sym_matrix
