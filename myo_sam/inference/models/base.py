@@ -275,7 +275,7 @@ class Nucleis(MyoObjects):
                 identifier=i,
                 roi_coords=coords,
                 measure_unit=1,
-                myotube_id=mapp[i],
+                myotube_ids=mapp[i],
                 centroid=centroids[i],
                 prob=probs[i] if probs is not None else None,
             )

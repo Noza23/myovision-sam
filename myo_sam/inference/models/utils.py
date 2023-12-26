@@ -36,7 +36,7 @@ def object_overlaps_polygon(
 
     Args:
         points (np.array): shaped (conts x 2) or vectorized (conts * 2, )
-            array of points
+            array of points (x, y) int16
         target_roi (np.array): N x conts x 2 array of points. (x, y) int32
 
     Returns:
