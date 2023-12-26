@@ -11,7 +11,7 @@ import numpy as np
 from .utils import (
     object_overlaps_box,
     object_overlaps_polygon,
-    object_overlaps_by_percentage,
+    object_overlaps_by_perc,
 )
 
 
@@ -83,11 +83,10 @@ class MyoObject(BaseModel):
         """Circularity of the myoobject."""
         return 4 * math.pi * self.area / (self.perimeter**2)
 
-    @computed_field  # type: ignore[misc]
     @property
     def convex_hull(self) -> list[list[list[int]]]:
         """Convex hull of the myoobject."""
-        return cv2.convexHull(self.roi_coords_np)
+        return cv2.convexHull(self.roi_coords_np, returnPoints=True)
 
     @cached_property
     def feret_bound_box(self) -> list[int]:
@@ -179,14 +178,23 @@ class MyoObjects(BaseModel):
 
     myo_objects: list[MyoObject] = Field("List of myoobjects.")
 
-    def __len__(self) -> int:
-        return len(self.myo_objects)
-
     @computed_field  # type: ignore[misc]
     @property
     def area(self) -> float:
         """Area of the myoobjects."""
         return sum([m.area for m in self.myo_objects])
+
+    def __len__(self) -> int:
+        return len(self.myo_objects)
+
+    def __getitem__(self, idx: int) -> MyoObject:
+        return self.myo_objects[idx]
+
+    def __iter__(self):
+        return iter(self.myo_objects)
+
+    def __contains__(self, item: MyoObject) -> bool:
+        return item in self.myo_objects
 
 
 class Myotubes(MyoObjects):
@@ -252,24 +260,25 @@ class Nucleis(MyoObjects):
         # np.flip(myoblast_rois.transpose(0, 2, 1), axis=2).astype(np.uint16)
         mapp = defaultdict(list)
         mapp_reverse = defaultdict(list)
-        for myotube in myotubes.myo_objects:
+        for myotube in myotubes:
             box = cv2.boundingRect(myotube.roi_coords_np)
             idx = np.where(object_overlaps_box(centroids[:, None, :], box))[0]
-            msk = np.apply_along_axis(
-                object_overlaps_polygon,
-                -1,
-                centroids[idx],
-                myotube.roi_coords_np,
-            )
-            idx = idx[msk]
-            msk = [
-                object_overlaps_by_percentage(p, box, myotube.roi_coords_np)
-                for p in roi_coords[idx][:, :, None, :]
-            ]
-            for i in idx[msk]:
-                mapp[i].append(myotube.identifier)
-                mapp_reverse[myotube.identifier].append(i)
-
+            if idx.size:
+                msk = np.apply_along_axis(
+                    object_overlaps_polygon,
+                    -1,
+                    centroids[idx],
+                    myotube.roi_coords_np,
+                )
+                idx = idx[msk]
+            if idx.size:
+                msk = [
+                    object_overlaps_by_perc(p, box, myotube.roi_coords_np)
+                    for p in roi_coords[idx][:, :, None, :]
+                ]
+                for i in idx[msk]:
+                    mapp[i].append(myotube.identifier)
+                    mapp_reverse[myotube.identifier].append(i)
         nucleis = [
             Nuclei(
                 identifier=i,

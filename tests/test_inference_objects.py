@@ -28,6 +28,22 @@ myotube_info = {
 }
 
 
+def get_myotubes():
+    return Myotubes(
+        myo_objects=[
+            Myotube(
+                identifier=i,
+                roi_coords=myotube["segmentation"].squeeze(),
+                measure_unit=1,
+                pred_iou=myotube["predicted_iou"],
+                stability=myotube["stability_score"],
+                rgb_repr=[[1, 2, 10], [1, 6, 7], [10, 30, 20]],
+            )
+            for i, myotube in enumerate(myotube_pred)
+        ]
+    )
+
+
 def test_nuclei():
     assert Nuclei(**nuclei_info)
 
@@ -36,13 +52,20 @@ def test_myotube():
     assert Myotube(**myotube_info)
 
 
+def test_myotubes():
+    myotubes = get_myotubes()
+    assert len(myotubes) == len(myotube_pred)
+    assert isinstance(myotubes, Myotubes)
+
+
 def test_parse_nucleis():
+    myotubes = get_myotubes()
     nucleis = Nucleis.parse_nucleis(
         roi_coords=np.flip(
             nuclei_pred["coord"].astype(np.int32).transpose(0, 2, 1), axis=2
         ),
         centroids=np.flip(nuclei_pred["points"].astype(np.int16), 1),
-        myotubes=Myotubes(myo_objects=[Myotube(**myotube_info)]),
+        myotubes=myotubes,
         probs=nuclei_pred["prob"],
     )
     assert len(nucleis) == len(nuclei_pred["coord"])

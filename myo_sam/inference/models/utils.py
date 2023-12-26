@@ -51,7 +51,7 @@ def object_overlaps_polygon(
     return False
 
 
-def object_overlaps_by_percentage(
+def object_overlaps_by_perc(
     points: np.ndarray,
     target_box: tuple[int, int, int, int],
     target_roi: np.ndarray,
