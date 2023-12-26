@@ -9,7 +9,9 @@ myotube_pred = np.load("tests/data/myosam_res.npy", allow_pickle=True).tolist()
 
 nuclei_info = {
     "identifier": 1,
-    "roi_coords": np.flip(nuclei_pred["coord"][0].astype(int).T, 1).tolist(),
+    "roi_coords": np.flip(
+        nuclei_pred["coord"][0].astype(np.int32).T, 1
+    ).tolist(),
     "measure_unit": 1,
     "myotube_ids": [2, 6],
     "centroid": np.flip(nuclei_pred["points"][0], 0).tolist(),
@@ -37,7 +39,7 @@ def test_myotube():
 def test_parse_nucleis():
     nucleis = Nucleis.parse_nucleis(
         roi_coords=np.flip(
-            nuclei_pred["coord"].astype(int).transpose(0, 2, 1), axis=2
+            nuclei_pred["coord"].astype(np.int32).transpose(0, 2, 1), axis=2
         ),
         centroids=np.flip(nuclei_pred["points"].astype(np.int16), 1),
         myotubes=Myotubes(myo_objects=[Myotube(**myotube_info)]),
