@@ -3,8 +3,6 @@ from .performance import PerformanceMetrics
 from .information import InformationMetrics
 from pathlib import Path
 
-from . import Myoblasts, Myotubes
-
 
 class MyoSamInferenceResult(BaseModel):
     """
@@ -13,9 +11,6 @@ class MyoSamInferenceResult(BaseModel):
 
     myotube_image: str = Field(..., example="~/myotube_image.png")
     myoblast_image: str = Field(..., example="~/myoblast_image.png")
-
-    myotubes: Myotubes
-    myoblasts: Myoblasts
 
     # The performance metrics
     performance_metrics: PerformanceMetrics = Field(

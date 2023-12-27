@@ -27,6 +27,16 @@ class MyoObject(BaseModel):
     roi_coords: list[list[int]] = Field(description="ROI boundaries")  # (x, y)
     measure_unit: float = Field(description="Measure unit of the myoobject.")
 
+    def __str__(self):
+        return (
+            f"identifier: {self.identifier}"
+            f"measure_unit: {self.measure_unit}"
+            f"area: {self.area}"
+            f"perimeter: {self.perimeter}"
+            f"roundness: {self.roundness}"
+            f"eligse: {self.elipse}"
+        )
+
     @cached_property
     def roi_coords_np(self) -> np.ndarray:
         """ROI coordinates as a numpy array. (N, 1, 2)"""
@@ -194,6 +204,9 @@ class MyoObjects(BaseModel):
         default_factory=dict,
     )
 
+    def __str__(self):
+        return f"num_objects: {len(self.myo_objects)}" f"area: {self.area}"
+
     @property
     def area(self) -> float:
         """Area of the myoobjects."""
@@ -323,6 +336,14 @@ class NucleiCluster(MyoObjects):
     myotube_id: int = Field("Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
 
+    def __str__(self):
+        return (
+            f"cluster_id: {self.cluster_id}"
+            f"myotube_id: {self.myotube_id}"
+            f"num_nuclei: {self.num_nuclei}"
+            f"area: {self.area}"
+        )
+
     @computed_field  # type: ignore[misc]
     @property
     def num_nuclei(self) -> int:
@@ -334,6 +355,9 @@ class NucleiClusters(BaseModel):
     """The nuclei clusters of a MyoSam inference."""
 
     clusters: list[NucleiCluster] = Field(description="List of clusters.")
+
+    def __str__(self):
+        return f"num_clusters: {len(self.clusters)}"
 
     def __len__(self) -> int:
         return len(self.clusters)
