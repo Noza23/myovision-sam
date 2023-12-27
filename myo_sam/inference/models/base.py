@@ -29,12 +29,12 @@ class MyoObject(BaseModel):
 
     def __str__(self):
         return (
-            f"identifier: {self.identifier}"
-            f"measure_unit: {self.measure_unit}"
-            f"area: {self.area}"
-            f"perimeter: {self.perimeter}"
-            f"roundness: {self.roundness}"
-            f"eligse: {self.elipse}"
+            f"identifier: {self.identifier}\n"
+            f"measure_unit: {self.measure_unit}\n"
+            f"area: {self.area}\n"
+            f"perimeter: {self.perimeter}\n"
+            f"roundness: {self.roundness}\n"
+            f"eligse: {self.elipse}\n"
         )
 
     @cached_property
@@ -204,6 +204,15 @@ class MyoObjects(BaseModel):
         default_factory=dict,
     )
 
+    @property
+    def reverse_mapping(self) -> dict[Optional[int], list[int]]:
+        """Reverse mapping of the myoobjects to other myoobjects."""
+        reverse_mapping = defaultdict(list)
+        for myo_id, myo_ids in self.mapping.items():
+            for myo_id_ in myo_ids:
+                reverse_mapping[myo_id_].append(myo_id)
+        return reverse_mapping
+
     def __str__(self):
         return f"num_objects: {len(self.myo_objects)}" f"area: {self.area}"
 
@@ -338,10 +347,10 @@ class NucleiCluster(MyoObjects):
 
     def __str__(self):
         return (
-            f"cluster_id: {self.cluster_id}"
-            f"myotube_id: {self.myotube_id}"
-            f"num_nuclei: {self.num_nuclei}"
-            f"area: {self.area}"
+            f"cluster_id: {self.cluster_id}\n"
+            f"myotube_id: {self.myotube_id}\n"
+            f"num_nuclei: {self.num_nuclei}\n"
+            f"area: {self.area}\n"
         )
 
     @computed_field  # type: ignore[misc]
@@ -371,7 +380,7 @@ class NucleiClusters(BaseModel):
     @classmethod
     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiClusters":
         """Computes the clusters of nucleis."""
-        mapping = nucleis.mapping
+        mapping = nucleis.reverse_mapping
         nuclei_clusters = []
         for myo_id, nucleis_ids in mapping.items():
             if len(nucleis_ids) < 2:

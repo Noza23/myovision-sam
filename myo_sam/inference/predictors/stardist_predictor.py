@@ -7,20 +7,29 @@ from csbdeep.utils import normalize
 import numpy as np
 
 
-class StarDistPredictor(BaseModel):
+class StarDistConfig(BaseModel):
+    """The configuration of a StarDist model."""
+
     model_name: str = Field(
-        description="The name of the StarDist model to use.",
-        default="2D_versatile_fluo",
+        description="StarDist model to use.", default="2D_versatile_fluo"
+    )
+
+
+class StarDistPredictor(BaseModel):
+    """The predictor of a StarDist inference."""
+
+    config: StarDistConfig = Field(
+        description="The configuration of the StarDist model.",
+        default=StarDistConfig(),
     )
 
     @cached_property
     def model(self) -> StarDist2D:
-        return StarDist2D.from_pretrained(self.model_name)
+        return StarDist2D.from_pretrained(self.config.model_name)
 
     def predict(self, image: np.ndarray) -> np.ndarray:
         """Predict the segmentation of the image."""
         _, pred_dict = self.model.predict_instances(self.preprocess(image))
-
         return self.postprocess_pred(pred_dict)
 
     @staticmethod

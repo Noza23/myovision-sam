@@ -4,7 +4,7 @@ import cv2
 
 def object_overlaps_box(
     points: np.ndarray, box: tuple[int, int, int, int]
-) -> np.ndarray:
+) -> bool:
     """
     Returns True if the point is inside the box. takes points of N objects
 
@@ -29,7 +29,7 @@ def object_overlaps_box(
 def object_overlaps_polygon(
     points: np.ndarray,
     target_roi: np.ndarray,
-) -> np.ndarray:
+) -> bool:
     """
     Returns True if the point is inside the polygon. takes points of a
         single object

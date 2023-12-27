@@ -83,6 +83,7 @@ def build_myosam_inference(checkpoint: str) -> Sam:
     Builds a Myosam model from a snapshot.
         - Only difference from original build_sam is the
             pixel-normalization constants
+
     Params:
         checkpoint (str): Path to the checkpoint
     """
