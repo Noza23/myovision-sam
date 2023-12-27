@@ -1,8 +1,12 @@
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 import numpy as np
+import cv2
+
+from segment_anything import SamAutomaticMaskGenerator
 
 from myo_sam.myosam import MyoSam
 from myo_sam.build_myosam import build_myosam_inference
@@ -52,6 +56,11 @@ class MyoSamConfig(AmgConfig):
     patch_size: int = Field(
         description="Patching image before processing", default=1500
     )
+    device: str = Field(description="Device to run model on", default="cpu")
+
+    @property
+    def amg_config(self) -> dict:
+        return AmgConfig(**self.model_dump()).model_dump()
 
     @field_validator("model")
     def validate_file_exists(cls, v) -> str:
@@ -70,8 +79,29 @@ class MyoSamPredictor(BaseModel):
 
     @cached_property
     def model(self) -> MyoSam:
-        return build_myosam_inference(self.config.checkpoint)
+        model = build_myosam_inference(self.config.checkpoint)
+        return model.to(self.config.device)
 
-    def predict(self, image: np.ndarray) -> dict[str, np.ndarray]:
+    @cached_property
+    def amg(self):
+        return SamAutomaticMaskGenerator(self.model, **self.config.amg_config)
+
+    def predict(self, image: np.ndarray) -> list[dict[str, Any]]:
         """Predict the segmentation of the image."""
-        return self.model.predict(image)
+        return self.postprocess_pred(self.amg.generate(image))
+
+    def postprocess_pred(
+        self, pred_dict: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Postprocess myosam prediction results."""
+        for pred in pred_dict:
+            pred.update(
+                {
+                    "segmentation": cv2.findContours(
+                        pred["segmentation"].astype(np.uint8),
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_NONE,
+                    )[0][0]
+                }
+            )
+        return pred_dict

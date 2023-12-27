@@ -11,6 +11,11 @@ from pydantic import BaseModel, Field, root_validator, field_validator
 from .predictors.stardist_predictor import StarDistPredictor, StarDistConfig
 from .predictors.myosam_predictor import MyoSamPredictor, MyoSamConfig
 
+# from .models.base import Myotube, Nuclei, NucleiClusters
+# from .models.information import InformationMetrics
+# from .models.performance import PerformanceMetrics
+# from .models.result import MyoSamInferenceResult
+
 
 class Pipeline(BaseModel):
     """The pipeline of a MyoSam inference."""
@@ -62,4 +67,8 @@ class Pipeline(BaseModel):
         stardist_pred = StarDistPredictor(config=self.stardist_config)
         myosam_predictor = MyoSamPredictor(config=self.myosam_config)
         nuclei_pred = stardist_pred.predict(self.nuclei_image_np)
-        return nuclei_pred, myosam_predictor
+        myotube_pred = myosam_predictor.predict(self.myotube_image_np)
+
+        # add rgb repr to myosoam_predictor dict
+
+        return nuclei_pred, myotube_pred
