@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Union, Optional
+from typing import Optional
 import math
 import statistics
 from collections import defaultdict
@@ -114,6 +114,15 @@ class Myotube(MyoObject):
     pred_iou: Optional[float] = Field(description="Predicted IoU")
     stability: Optional[float] = Field(description="Stability")
     rgb_repr: list[list[int]] = Field(description="RGB representation")
+    nuclei_ids: list[Optional[int]] = Field(
+        description="Nucleis inside instance", default_factory=list
+    )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def instance_fusion_index(self) -> int:
+        """Number of nuclei inside the myotube."""
+        return len(self.nuclei_ids)
 
     @computed_field  # type: ignore[misc]
     @property
@@ -167,7 +176,7 @@ class Myotube(MyoObject):
 class Nuclei(MyoObject):
     """A detected nuclei."""
 
-    myotube_ids: list[Union[int, None]] = Field(
+    myotube_ids: list[Optional[int]] = Field(
         description="Identifer of the myotubes the nuclei belongs to."
     )
     centroid: tuple[float, float] = Field(
@@ -180,12 +189,19 @@ class MyoObjects(BaseModel):
     """Base class for myotubes and myoblasts and other detected objects."""
 
     myo_objects: list[MyoObject] = Field("List of myoobjects.")
+    mapping: dict[int, list[Optional[int]]] = Field(
+        description="Mapping of the myoobjects to other myoobjects.",
+        default_factory=dict,
+    )
 
-    @computed_field  # type: ignore[misc]
     @property
     def area(self) -> float:
         """Area of the myoobjects."""
         return sum([m.area for m in self.myo_objects])
+
+    def add_mapping(self, mapping: dict[int, list[Optional[int]]]) -> None:
+        """Adds a mapping to the myoobjects."""
+        self.mapping = mapping
 
     def __len__(self) -> int:
         return len(self.myo_objects)
@@ -208,41 +224,44 @@ class Myotubes(MyoObjects):
     def get_myotube_by_id(self, id: int) -> Myotube:
         return [m for m in self.myo_objects if m.identifier == id][0]
 
+    def add_mapping(self, mapping: dict[int, list[Optional[int]]]) -> None:
+        """Adds a mapping to the myoobjects."""
+        super().add_mapping(mapping)
+        for myo in self.myo_objects:
+            myo.nuclei_ids = mapping[myo.identifier]
+
 
 class Nucleis(MyoObjects):
     """The nucleis of a MyoSam inference."""
 
     myo_objects: list[Nuclei] = Field("List of nucleis.")
-    mapp: dict[int, list[int]] = Field(
-        description="Mapping of the nucleis to the myotubes."
-    )
-    mapp_reverse: dict[int, list[int]] = Field(
-        description="Mapping of the myotubes to the nucleis."
+    mapping: dict[int, list[Optional[int]]] = Field(
+        description="Mapping of the nucleis to myotubes."
     )
 
-    @computed_field  # type: ignore[misc]
     @property
     def num_myoblasts(self) -> int:
         """Number of myoblasts."""
         return len([m for m in self.myo_objects if not m.myotube_ids])
 
-    @computed_field  # type: ignore[misc]
     @property
-    def num_nuclei_inside_myotube(self) -> int:
+    def num_nuclei_inside_myotubes(self) -> int:
         """Number of myotubes."""
         return len(self) - self.num_myoblasts
 
-    @computed_field  # type: ignore[misc]
     @property
     def myoblasts_area(self) -> float:
         """Area of the myoblasts."""
         return sum([m.area for m in self.myo_objects if not m.myotube_ids])
 
-    @computed_field  # type: ignore[misc]
     @property
     def nucleis_inside_myotubes_area(self) -> float:
         """Area of the myotubes."""
         return self.area - self.myoblasts_area
+
+    @property
+    def total_fusion_index(self):
+        return self.num_nuclei_inside_myotubes / self.num_myoblasts
 
     @classmethod
     def parse_nucleis(
@@ -293,7 +312,8 @@ class Nucleis(MyoObjects):
             )
             for i, coords in enumerate(roi_coords)
         ]
-        return cls(myo_objects=nucleis, mapp=mapp, mapp_reverse=mapp_reverse)
+        myotubes.add_mapping(mapp_reverse)
+        return cls(myo_objects=nucleis, mapping=mapp)
 
 
 class NucleiCluster(MyoObjects):
@@ -302,6 +322,12 @@ class NucleiCluster(MyoObjects):
     cluster_id: str = Field("Cluster identifier")
     myotube_id: int = Field("Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def num_nuclei(self) -> int:
+        """Number of nuclei."""
+        return len(self.myo_objects)
 
 
 class NucleiClusters(BaseModel):
@@ -321,7 +347,7 @@ class NucleiClusters(BaseModel):
     @classmethod
     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiClusters":
         """Computes the clusters of nucleis."""
-        mapping = nucleis.mapp_reverse
+        mapping = nucleis.mapping
         nuclei_clusters = []
         for myo_id, nucleis_ids in mapping.items():
             if len(nucleis_ids) < 2:
@@ -334,6 +360,7 @@ class NucleiClusters(BaseModel):
                         nucleis[y].roi_coords_np,
                     )
                     for x, y in pairs
+                    if x is not None and y is not None
                 ]
             )
             if not lower_tri.any():
