@@ -34,7 +34,7 @@ class MyoObject(BaseModel):
             f"area: {self.area}\n"
             f"perimeter: {self.perimeter}\n"
             f"roundness: {self.roundness}\n"
-            f"eligse: {self.elipse}\n"
+            f"elipse: {self.elipse}\n"
         )
 
     @cached_property
@@ -198,10 +198,12 @@ class Nuclei(MyoObject):
 class MyoObjects(BaseModel):
     """Base class for myotubes and myoblasts and other detected objects."""
 
-    myo_objects: list[MyoObject] = Field("List of myoobjects.")
+    myo_objects: list[MyoObject] = Field(
+        description="List of myoobjects.", default_factory=list
+    )
     mapping: dict[int, list[Optional[int]]] = Field(
         description="Mapping of the myoobjects to other myoobjects.",
-        default_factory=dict,
+        default_factory=defaultdict,
     )
 
     @property
@@ -229,6 +231,8 @@ class MyoObjects(BaseModel):
         return len(self.myo_objects)
 
     def __getitem__(self, idx: int) -> MyoObject:
+        if isinstance(idx, slice):
+            return self.__class__(myo_objects=self.myo_objects[idx])
         return self.myo_objects[idx]
 
     def __iter__(self):
@@ -241,7 +245,9 @@ class MyoObjects(BaseModel):
 class Myotubes(MyoObjects):
     """The myotubes of a MyoSam inference."""
 
-    myo_objects: list[Myotube] = Field("List of myotubes.")
+    myo_objects: list[Myotube] = Field(
+        description="List of myotubes.", default_factory=list
+    )
 
     def get_myotube_by_id(self, id: int) -> Myotube:
         return [m for m in self.myo_objects if m.identifier == id][0]
@@ -256,9 +262,8 @@ class Myotubes(MyoObjects):
 class Nucleis(MyoObjects):
     """The nucleis of a MyoSam inference."""
 
-    myo_objects: list[Nuclei] = Field("List of nucleis.")
-    mapping: dict[int, list[Optional[int]]] = Field(
-        description="Mapping of the nucleis to myotubes."
+    myo_objects: list[Nuclei] = Field(
+        description="List of nucleis.", default_factory=list
     )
 
     @property
@@ -328,7 +333,7 @@ class Nucleis(MyoObjects):
             Nuclei(
                 identifier=i,
                 roi_coords=coords,
-                measure_unit=1,
+                measure_unit=measure_unit,
                 myotube_ids=mapp[i],
                 centroid=centroids[i],
                 prob=probs[i] if probs is not None else None,
@@ -342,8 +347,8 @@ class Nucleis(MyoObjects):
 class NucleiCluster(MyoObjects):
     """A detected nuclei cluster."""
 
-    cluster_id: str = Field("Cluster identifier")
-    myotube_id: int = Field("Myotube identifier")
+    cluster_id: str = Field(description="Cluster identifier")
+    myotube_id: int = Field(description="Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
 
     def __str__(self):

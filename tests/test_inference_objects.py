@@ -50,8 +50,11 @@ def get_myotubes():
     )
 
 
-def get_nucleis():
-    myotubes = get_myotubes()
+def get_nucleis(empty_myotubes=False):
+    if empty_myotubes:
+        myotubes = Myotubes()
+    else:
+        myotubes = get_myotubes()
     return Nucleis.parse_nucleis(
         roi_coords=np.flip(
             nuclei_pred["coord"].astype(np.int32).transpose(0, 2, 1), axis=2
@@ -86,3 +89,21 @@ def test_parse_nucleis():
     nucleis = get_nucleis()
     assert len(nucleis) == len(nuclei_pred["coord"])
     assert isinstance(nucleis, Nucleis)
+
+
+def test_parse_nucleis_empty_myotubes():
+    nucleis = get_nucleis(True)
+    clusters = NucleiClusters.compute_clusters(nucleis)
+    assert len(nucleis) == len(nuclei_pred["coord"])
+    assert isinstance(nucleis, Nucleis)
+    assert len(clusters) == 0
+    assert isinstance(clusters, NucleiClusters)
+
+
+def test_empty_nucleis():
+    nucleis = Nucleis()
+    clusters = NucleiClusters.compute_clusters(nucleis)
+    assert len(nucleis) == 0
+    assert isinstance(nucleis, Nucleis)
+    assert len(clusters) == 0
+    assert isinstance(clusters, NucleiClusters)

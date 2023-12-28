@@ -67,18 +67,26 @@ class Pipeline(BaseModel):
         return v
 
     def execute(self) -> MyoSamInferenceResult:
-        stardist_pred = StarDistPredictor(config=self.stardist_config)
-        myosam_predictor = MyoSamPredictor(config=self.myosam_config)
-        nuclei_pred = stardist_pred.predict(
-            self.nuclei_image_np, self.measure_unit
-        )
-        myotube_pred = myosam_predictor.predict(
-            self.myotube_image_np, self.measure_unit
-        )
+        """Execute the pipeline."""
+        if self.myotube_image:
+            myosam_predictor = MyoSamPredictor(config=self.myosam_config)
+            myotube_pred = myosam_predictor.predict(
+                self.myotube_image_np, self.measure_unit
+            )
+            myotubes = Myotubes.model_validate({"myo_objects": myotube_pred})
+        else:
+            myotubes = Myotubes()
 
-        myotubes = Myotubes.model_validate({"myo_objects": myotube_pred})
-        nucleis = Nucleis.parse_nucleis(**nuclei_pred, myotubes=myotubes)
-        clusters = NucleiClusters.compute_clusters(nucleis)
+        if self.nuclei_image:
+            stardist_pred = StarDistPredictor(config=self.stardist_config)
+            nuclei_pred = stardist_pred.predict(
+                self.nuclei_image_np, self.measure_unit
+            )
+            nucleis = Nucleis.parse_nucleis(**nuclei_pred, myotubes=myotubes)
+            clusters = NucleiClusters.compute_clusters(nucleis)
+        else:
+            nucleis = Nucleis()
+            clusters = NucleiClusters()
 
         info = InformationMetrics(
             myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
