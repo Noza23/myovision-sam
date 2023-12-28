@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from .base import MyoObject
+from .base import MyoObjects
 
 
 class PerformanceMetrics(BaseModel):
@@ -14,6 +14,6 @@ class PerformanceMetrics(BaseModel):
 
     @classmethod
     def compute_performance(
-        cls, prediction: MyoObject, ground_truth: MyoObject
+        cls, predictions: MyoObjects, ground_truths: MyoObjects
     ) -> "PerformanceMetrics":
         return PerformanceMetrics()

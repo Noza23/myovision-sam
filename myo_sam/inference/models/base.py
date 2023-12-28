@@ -291,6 +291,7 @@ class Nucleis(MyoObjects):
         roi_coords: np.ndarray,
         centroids: np.ndarray,
         myotubes: Myotubes,
+        measure_unit: float = 1,
         probs: Optional[np.ndarray] = None,
     ) -> "Nucleis":
         """

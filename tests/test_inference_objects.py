@@ -58,6 +58,7 @@ def get_nucleis():
         ),
         centroids=np.flip(nuclei_pred["points"].astype(np.int16), 1),
         myotubes=myotubes,
+        measure_unit=1,
         probs=nuclei_pred["prob"],
     )
 

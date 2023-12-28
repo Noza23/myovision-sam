@@ -27,10 +27,16 @@ class StarDistPredictor(BaseModel):
     def model(self) -> StarDist2D:
         return StarDist2D.from_pretrained(self.config.model_name)
 
-    def predict(self, image: np.ndarray) -> np.ndarray:
-        """Predict the segmentation of the image."""
+    def predict(self, image: np.ndarray, mu: float) -> np.ndarray:
+        """
+        Predict the segmentation of the image.
+
+        Args:
+            image: Grayscale image to predict.
+            mu: The measure unit of the image.
+        """
         _, pred_dict = self.model.predict_instances(self.preprocess(image))
-        return self.postprocess_pred(pred_dict)
+        return self.postprocess_pred(pred_dict, mu)
 
     @staticmethod
     def preprocess(image: np.ndarray) -> np.ndarray:
@@ -38,7 +44,7 @@ class StarDistPredictor(BaseModel):
         return normalize(image)
 
     @staticmethod
-    def postprocess_pred(pred_dict: dict) -> dict[str, np.ndarray]:
+    def postprocess_pred(pred_dict: dict, mu: float) -> dict[str, np.ndarray]:
         """Postprocess stardist prediction results."""
         pred_dict.update(
             {
@@ -47,6 +53,7 @@ class StarDistPredictor(BaseModel):
                     axis=2,
                 ),
                 "points": np.flip(pred_dict["points"].astype(np.int16), 1),
+                "measure_unit": mu,
             }
         )
         return pred_dict

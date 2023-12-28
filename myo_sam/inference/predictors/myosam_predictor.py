@@ -86,22 +86,37 @@ class MyoSamPredictor(BaseModel):
     def amg(self):
         return SamAutomaticMaskGenerator(self.model, **self.config.amg_config)
 
-    def predict(self, image: np.ndarray) -> list[dict[str, Any]]:
-        """Predict the segmentation of the image."""
-        return self.postprocess_pred(self.amg.generate(image))
+    def predict(self, image: np.ndarray, mu: float) -> list[dict[str, Any]]:
+        """
+        Predict the segmentation of the image.
+
+        Args:
+            image: RGB image to predict.
+            mu: The measure unit of the image.
+        """
+        pred_dict = self.amg.generate(image)
+
+        return self.postprocess_pred(pred_dict, image, mu)
 
     def postprocess_pred(
-        self, pred_dict: list[dict[str, Any]]
+        self, pred_dict: list[dict[str, Any]], image: np.ndarray, mu: float
     ) -> list[dict[str, Any]]:
         """Postprocess myosam prediction results."""
-        for pred in pred_dict:
-            pred.update(
+        pred_post = []
+        for i, pred in enumerate(pred_dict):
+            roi_cords = cv2.findContours(
+                pred["segmentation"].astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            pred_post.append(
                 {
-                    "segmentation": cv2.findContours(
-                        pred["segmentation"].astype(np.uint8),
-                        cv2.RETR_EXTERNAL,
-                        cv2.CHAIN_APPROX_NONE,
-                    )[0][0]
+                    "identifier": i,
+                    "roi_coords": roi_cords[0][0],
+                    "measure_unit": mu,
+                    "pred_iou": pred["predicted_iou"],
+                    "stability": pred["stability_score"],
+                    "rgb_repr": image[pred["segmentation"]].tolist(),
                 }
             )
         return pred_dict

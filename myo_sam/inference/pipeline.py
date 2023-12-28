@@ -11,10 +11,10 @@ from pydantic import BaseModel, Field, root_validator, field_validator
 from .predictors.stardist_predictor import StarDistPredictor, StarDistConfig
 from .predictors.myosam_predictor import MyoSamPredictor, MyoSamConfig
 
-# from .models.base import Myotube, Nuclei, NucleiClusters
-# from .models.information import InformationMetrics
-# from .models.performance import PerformanceMetrics
-# from .models.result import MyoSamInferenceResult
+from .models.base import Myotubes, Nucleis, NucleiClusters
+from .models.information import InformationMetrics
+from .models.performance import PerformanceMetrics
+from .models.result import MyoSamInferenceResult
 
 
 class Pipeline(BaseModel):
@@ -34,10 +34,13 @@ class Pipeline(BaseModel):
         description="The configuration of the MyoSam model.",
         default=MyoSamConfig(),
     )
+    measure_unit: int = Field(
+        description="The measure unit of the images.", default=1
+    )
 
     @cached_property
     def myotube_image_np(self) -> np.ndarray:
-        return cv2.imread(self.myotube_image)
+        return cv2.cvtColor(cv2.imread(self.myotube_image), cv2.COLOR_BGR2RGB)
 
     @cached_property
     def nuclei_image_np(self) -> np.ndarray:
@@ -63,12 +66,31 @@ class Pipeline(BaseModel):
             raise ValueError(f"File {v} must have a png, jpeg or tif format.")
         return v
 
-    def execute(self):
+    def execute(self) -> MyoSamInferenceResult:
         stardist_pred = StarDistPredictor(config=self.stardist_config)
         myosam_predictor = MyoSamPredictor(config=self.myosam_config)
-        nuclei_pred = stardist_pred.predict(self.nuclei_image_np)
-        myotube_pred = myosam_predictor.predict(self.myotube_image_np)
+        nuclei_pred = stardist_pred.predict(
+            self.nuclei_image_np, self.measure_unit
+        )
+        myotube_pred = myosam_predictor.predict(
+            self.myotube_image_np, self.measure_unit
+        )
 
-        # add rgb repr to myosoam_predictor dict
+        myotubes = Myotubes.model_validate({"myo_objects": myotube_pred})
+        nucleis = Nucleis.parse_nucleis(**nuclei_pred, myotubes=myotubes)
+        clusters = NucleiClusters.compute_clusters(nucleis)
 
-        return nuclei_pred, myotube_pred
+        info = InformationMetrics(
+            myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
+        )
+        perf = PerformanceMetrics.compute_performance(
+            predictions=myotubes, ground_truths=myotubes
+        )
+
+        result = MyoSamInferenceResult(
+            myotube_image=self.myotube_image,
+            nuclei_image=self.nuclei_image,
+            information_metrics=info,
+            performance_metrics=perf,
+        )
+        return result
