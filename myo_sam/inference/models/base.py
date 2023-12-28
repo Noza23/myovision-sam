@@ -22,8 +22,6 @@ class MyoObject(BaseModel):
     """Base Class for MyoObjects: Myotubes and Nucleis."""
 
     identifier: int = Field(description="Identifier of the myoobject.")
-    # roi_coords are computed using cv2.findContours conts[0].tolist()
-    # cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     roi_coords: list[list[int]] = Field(description="ROI boundaries")  # (x, y)
     measure_unit: float = Field(description="Measure unit of the myoobject.")
 
