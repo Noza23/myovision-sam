@@ -9,7 +9,7 @@ class MyoSamInferenceResult(BaseModel):
     """
 
     myotube_image: str = Field(description="Myotube Image name")
-    myoblast_image: str = Field(..., example="Myoblast Image name")
+    nuclei_image: str = Field(..., example="Myoblast Image name")
 
     # The information metrics
     information_metrics: InformationMetrics = Field(
