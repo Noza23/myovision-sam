@@ -86,7 +86,7 @@ class Pipeline(BaseModel):
             clusters = NucleiClusters.compute_clusters(nucleis)
         else:
             nucleis = Nucleis()
-            clusters = NucleiClusters()
+            clusters = NucleiClusters.compute_clusters(nucleis)
 
         info = InformationMetrics(
             myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
