@@ -42,7 +42,7 @@ class InformationMetrics(BaseModel):
 
     @computed_field  # type: ignore[misc]
     @property
-    def total_fusion_index(self) -> int:
+    def total_fusion_index(self) -> float:
         """The total fusion index."""
         return self.nucleis.total_fusion_index
 
