@@ -95,7 +95,6 @@ class MyoSamPredictor(BaseModel):
             mu: The measure unit of the image.
         """
         pred_dict = self.amg.generate(image)
-
         return self.postprocess_pred(pred_dict, image, mu)
 
     def postprocess_pred(
