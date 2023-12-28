@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from .performance import PerformanceMetrics
 from .information import InformationMetrics
 
+import json
+
 
 class MyoSamInferenceResult(BaseModel):
     """
@@ -19,3 +21,12 @@ class MyoSamInferenceResult(BaseModel):
     performance_metrics: PerformanceMetrics = Field(
         description="The performance metrics of the inference."
     )
+
+    def save(self, path: str) -> None:
+        """
+        Save the result of the inference.
+
+        Args:
+            path: The path to save the result.
+        """
+        json.dump(self.model_dump(mode="json"), open(path, "w"))
