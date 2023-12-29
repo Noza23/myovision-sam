@@ -106,7 +106,7 @@ class MyoSamPredictor(BaseModel):
             roi_cords = cv2.findContours(
                 pred["segmentation"].astype(np.uint8),
                 cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
+                cv2.CHAIN_APPROX_SIMPLE,
             )
             pred_post.append(
                 {
