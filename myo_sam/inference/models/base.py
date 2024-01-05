@@ -204,6 +204,11 @@ class MyoObjects(BaseModel):
         default_factory=defaultdict,
     )
 
+    def adjust_measure_unit(self, measure_unit: float) -> None:
+        """Adjust the measure unit of the nucleis."""
+        for myo in self.myo_objects:
+            myo.measure_unit = measure_unit
+
     @property
     def reverse_mapping(self) -> dict[Optional[int], list[int]]:
         """Reverse mapping of the myoobjects to other myoobjects."""

@@ -81,10 +81,12 @@ class Pipeline(BaseModel):
             myotubes = Myotubes()
 
         if self.nuclei_image:
-            nuclei_pred = self.stardist_predictor.predict(
-                self.nuclei_image_np, self.measure_unit
+            nuclei_pred = self.stardist_predictor.predict(self.nuclei_image_np)
+            nucleis = Nucleis.parse_nucleis(
+                **nuclei_pred,
+                myotubes=myotubes,
+                measure_unit=self.measure_unit,
             )
-            nucleis = Nucleis.parse_nucleis(**nuclei_pred, myotubes=myotubes)
             clusters = NucleiClusters.compute_clusters(nucleis)
         else:
             nucleis = Nucleis()

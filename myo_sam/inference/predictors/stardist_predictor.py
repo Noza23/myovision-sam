@@ -16,7 +16,7 @@ class StarDistPredictor:
         """Set the model of the predictor."""
         self.model = StarDist2D.from_pretrained(checkpoint_name)
 
-    def predict(self, image: np.ndarray, mu: float) -> np.ndarray:
+    def predict(self, image: np.ndarray) -> np.ndarray:
         """
         Predict the segmentation of the image.
 
@@ -27,7 +27,7 @@ class StarDistPredictor:
         if not self.model:
             raise ValueError("Model must be set.")
         _, pred_dict = self.model.predict_instances(self.preprocess(image))
-        return self.postprocess_pred(pred_dict, mu)
+        return self.postprocess_pred(pred_dict)
 
     @staticmethod
     def preprocess(image: np.ndarray) -> np.ndarray:
@@ -35,7 +35,7 @@ class StarDistPredictor:
         return normalize(image)
 
     @staticmethod
-    def postprocess_pred(pred_dict: dict, mu: float) -> dict[str, np.ndarray]:
+    def postprocess_pred(pred_dict: dict) -> dict[str, np.ndarray]:
         """Postprocess stardist prediction results."""
         pred_dict.update(
             {
@@ -44,7 +44,6 @@ class StarDistPredictor:
                     axis=2,
                 ),
                 "points": np.flip(pred_dict["points"].astype(np.int16), 1),
-                "measure_unit": mu,
             }
         )
         return pred_dict
