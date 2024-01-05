@@ -50,6 +50,7 @@ class Pipeline(BaseModel):
             str(self.myotube_image)
             + str(self.nuclei_image)
             + self.stardist_predictor.name
+            + self.myosam_predictor.name
         )
 
     @cached_property

@@ -71,6 +71,11 @@ class MyoSamPredictor(BaseModel):
         self.model = build_myosam_inference(checkpoint).to(device)
 
     @property
+    def name(self) -> str:
+        """Return the name of the model in predictor."""
+        return "MyoSam"
+
+    @property
     def amg(self):
         return SamAutomaticMaskGenerator(self.model, **self.amg_config)
 
