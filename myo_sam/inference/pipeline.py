@@ -46,10 +46,10 @@ class Pipeline(BaseModel):
 
     def uid(self) -> int:
         """Return the uid of the pipeline."""
-        return (
-            hash(self.myotube_image)
-            + hash(self.nuclei_image)
-            + self.stardist_predictor.uid()
+        return hash(
+            str(self.myotube_image)
+            + str(self.nuclei_image)
+            + self.stardist_predictor.name
         )
 
     @cached_property

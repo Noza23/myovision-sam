@@ -16,11 +16,12 @@ class StarDistPredictor:
         """Set the model of the predictor."""
         self.model = StarDist2D.from_pretrained(checkpoint_name)
 
-    def uid(self) -> int:
-        """Return the uid of the predictor."""
+    @property
+    def name(self) -> str:
+        """Return the name of the predictor."""
         if not self.model:
-            return hash(self.model)
-        return hash(self.model.name)
+            return "None"
+        return self.model.name
 
     def predict(self, image: np.ndarray) -> np.ndarray:
         """
