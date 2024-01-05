@@ -44,6 +44,14 @@ class Pipeline(BaseModel):
         exclude=True,
     )
 
+    def uid(self) -> int:
+        """Return the uid of the pipeline."""
+        return (
+            hash(self.myotube_image)
+            + hash(self.nuclei_image)
+            + self.stardist_predictor.uid()
+        )
+
     @cached_property
     def myotube_image_np(self) -> np.ndarray:
         return cv2.cvtColor(cv2.imread(self.myotube_image), cv2.COLOR_BGR2RGB)

@@ -16,6 +16,12 @@ class StarDistPredictor:
         """Set the model of the predictor."""
         self.model = StarDist2D.from_pretrained(checkpoint_name)
 
+    def uid(self) -> int:
+        """Return the uid of the predictor."""
+        if not self.model:
+            return hash(self.model)
+        return hash(self.model.name)
+
     def predict(self, image: np.ndarray) -> np.ndarray:
         """
         Predict the segmentation of the image.
