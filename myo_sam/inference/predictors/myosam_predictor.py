@@ -1,8 +1,7 @@
-from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 import numpy as np
 import cv2
 
@@ -52,39 +51,50 @@ class AmgConfig(BaseModel):
 class MyoSamConfig(AmgConfig):
     """The configuration of a MyoSam model."""
 
-    checkpoint: str = Field(description="Path to model checkpoint")
+    checkpoint: str = Field(
+        description="Path to model checkpoint",
+        default="",
+        validate_default=False,
+    )
     patch_size: int = Field(
         description="Patching image before processing", default=1500
     )
-    device: str = Field(description="Device to run model on", default="cpu")
+    device: str = Field(description="Device to run model on", default="gpu")
 
     @property
     def amg_config(self) -> dict:
         return AmgConfig(**self.model_dump()).model_dump()
 
-    @field_validator("model")
-    def validate_file_exists(cls, v) -> str:
-        if not Path(v).exists():
-            raise ValueError(f"Checkpoint could be found: {v} does not exist.")
-        return v
-
 
 class MyoSamPredictor(BaseModel):
     """The predictor of a MyoSam inference."""
 
-    config: MyoSamConfig = Field(
-        description="The configuration of the MyoSam model.",
-        default=MyoSamConfig(),
+    amg_config: AmgConfig = Field(
+        description="The configuration of the AMG framework.",
+        default=AmgConfig(),
     )
 
-    @cached_property
-    def model(self) -> MyoSam:
-        model = build_myosam_inference(self.config.checkpoint)
-        return model.to(self.config.device)
+    model: Union[MyoSam, None] = Field(
+        description="The MyoSam model.", default=None, exclude=True
+    )
 
-    @cached_property
+    def set_model(self, checkpoint: str, device: str) -> None:
+        """Set the model of the predictor."""
+        if device == "cpu":
+            raise ValueError("Running MyoSAM on CPU is not supported.")
+        if not Path(checkpoint).exists():
+            raise ValueError(
+                f"Checkpoint could be found: {checkpoint} does not exist."
+            )
+        self.model = build_myosam_inference(checkpoint).to(device)
+
+    @property
     def amg(self):
-        return SamAutomaticMaskGenerator(self.model, **self.config.amg_config)
+        return SamAutomaticMaskGenerator(self.model, **self.amg_config)
+
+    def update_config(self, config: dict[str, Any]) -> None:
+        """Update the configuration of the predictor."""
+        self.amg_config = AmgConfig.model_validate(config)
 
     def predict(self, image: np.ndarray, mu: float) -> list[dict[str, Any]]:
         """

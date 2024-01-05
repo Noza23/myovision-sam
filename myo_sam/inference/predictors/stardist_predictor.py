@@ -1,31 +1,20 @@
-from functools import cached_property
+from typing import Union
 
-from pydantic import BaseModel, Field
 from stardist.models import StarDist2D
 from csbdeep.utils import normalize
 
 import numpy as np
 
 
-class StarDistConfig(BaseModel):
-    """The configuration of a StarDist model."""
-
-    model_name: str = Field(
-        description="StarDist model to use.", default="2D_versatile_fluo"
-    )
-
-
-class StarDistPredictor(BaseModel):
+class StarDistPredictor:
     """The predictor of a StarDist inference."""
 
-    config: StarDistConfig = Field(
-        description="The configuration of the StarDist model.",
-        default=StarDistConfig(),
-    )
+    def __init__(self):
+        self.model: Union[StarDist2D, None] = None
 
-    @cached_property
-    def model(self) -> StarDist2D:
-        return StarDist2D.from_pretrained(self.config.model_name)
+    def set_model(self, checkpoint_name: str) -> None:
+        """Set the model of the predictor."""
+        self.model = StarDist2D.from_pretrained(checkpoint_name)
 
     def predict(self, image: np.ndarray, mu: float) -> np.ndarray:
         """
@@ -35,6 +24,8 @@ class StarDistPredictor(BaseModel):
             image: Grayscale image to predict.
             mu: The measure unit of the image.
         """
+        if not self.model:
+            raise ValueError("Model must be set.")
         _, pred_dict = self.model.predict_instances(self.preprocess(image))
         return self.postprocess_pred(pred_dict, mu)
 
