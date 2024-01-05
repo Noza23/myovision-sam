@@ -48,24 +48,6 @@ class AmgConfig(BaseModel):
     output_mode: str = Field(description="Output mode", default="binary_mask")
 
 
-class MyoSamConfig(AmgConfig):
-    """The configuration of a MyoSam model."""
-
-    checkpoint: str = Field(
-        description="Path to model checkpoint",
-        default="",
-        validate_default=False,
-    )
-    patch_size: int = Field(
-        description="Patching image before processing", default=1500
-    )
-    device: str = Field(description="Device to run model on", default="gpu")
-
-    @property
-    def amg_config(self) -> dict:
-        return AmgConfig(**self.model_dump()).model_dump()
-
-
 class MyoSamPredictor(BaseModel):
     """The predictor of a MyoSam inference."""
 
