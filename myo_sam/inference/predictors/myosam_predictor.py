@@ -48,17 +48,12 @@ class AmgConfig(BaseModel):
     output_mode: str = Field(description="Output mode", default="binary_mask")
 
 
-class MyoSamPredictor(BaseModel):
+class MyoSamPredictor:
     """The predictor of a MyoSam inference."""
 
-    amg_config: AmgConfig = Field(
-        description="The configuration of the AMG framework.",
-        default=AmgConfig(),
-    )
-
-    model: Union[MyoSam, None] = Field(
-        description="The MyoSam model.", default=None, exclude=True
-    )
+    def __init__(self) -> None:
+        self.amg_config: AmgConfig = AmgConfig()
+        self.model: Union[MyoSam, None] = None
 
     def set_model(self, checkpoint: str, device: str) -> None:
         """Set the model of the predictor."""

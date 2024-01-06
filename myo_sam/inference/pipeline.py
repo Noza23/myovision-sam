@@ -4,7 +4,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, PrivateAttr
 
 from .predictors import StarDistPredictor, MyoSamPredictor
 
@@ -19,7 +19,9 @@ from .utils import hash_array
 class Pipeline(BaseModel):
     """The pipeline of a MyoSam inference."""
 
-    validate_assignment = True
+    class Config:
+        validate_assignment = True
+
     myotube_image: Optional[str] = Field(
         description="Path to Myotube Image",
         default=None,
@@ -34,17 +36,11 @@ class Pipeline(BaseModel):
     measure_unit: int = Field(
         description="The measure unit of the images.", default=1
     )
-    stardist_predictor: StarDistPredictor = Field(
-        description="The predictor of a StarDist inference.",
-        default=StarDistPredictor(),
-        exclude=True,
+    _stardist_predictor: StarDistPredictor = PrivateAttr(
+        default=StarDistPredictor()
     )
 
-    myosam_predictor: MyoSamPredictor = Field(
-        description="The predictor of a MyoSam inference.",
-        default=None,
-        exclude=True,
-    )
+    _myosam_predictor: MyoSamPredictor = PrivateAttr(default=MyoSamPredictor())
 
     def clear_cache(self) -> None:
         """Clear cached properties."""
@@ -53,10 +49,14 @@ class Pipeline(BaseModel):
 
     @cached_property
     def myotube_image_np(self) -> np.ndarray:
+        if not self.myotube_image:
+            raise ValueError("Myotube image must be set.")
         return cv2.cvtColor(cv2.imread(self.myotube_image), cv2.COLOR_BGR2RGB)
 
     @cached_property
     def nuclei_image_np(self) -> np.ndarray:
+        if not self.nuclei_image:
+            raise ValueError("Nuclei image must be set.")
         return cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
 
     @cached_property
@@ -66,6 +66,16 @@ class Pipeline(BaseModel):
     @cached_property
     def nuclei_image_hash(self) -> str:
         return hash_array(self.nuclei_image_np)
+
+    def set_nuclei_image(self, image: str) -> None:
+        """Set the nuclei image."""
+        self.nuclei_image = image
+        self.clear_cache()
+
+    def set_myotube_image(self, image: str) -> None:
+        """Set the myotube image."""
+        self.myotube_image = image
+        self.clear_cache()
 
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_exists(cls, v) -> str:
@@ -97,7 +107,7 @@ class Pipeline(BaseModel):
             )
         if self.myotube_image:
             if not myotubes_cached:
-                myotube_pred = self.myosam_predictor.predict(
+                myotube_pred = self._myosam_predictor.predict(
                     self.myotube_image_np, self.measure_unit
                 )
                 myotubes = Myotubes.model_validate(
@@ -110,7 +120,7 @@ class Pipeline(BaseModel):
 
         if self.nuclei_image:
             if not nucleis_cached:
-                nuclei_pred = self.stardist_predictor.predict(
+                nuclei_pred = self._stardist_predictor.predict(
                     self.nuclei_image_np
                 )
                 nucleis = Nucleis.parse_nucleis(
