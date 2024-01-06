@@ -72,7 +72,7 @@ class MyoSamPredictor(BaseModel):
 
     @property
     def name(self) -> str:
-        """Return the name of the model in predictor."""
+        """Return the name of the predictor"""
         return "MyoSam"
 
     @property

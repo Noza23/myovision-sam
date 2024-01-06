@@ -13,6 +13,8 @@ from .models.information import InformationMetrics
 from .models.performance import PerformanceMetrics
 from .models.result import MyoSamInferenceResult
 
+from .utils import hash_array
+
 
 class Pipeline(BaseModel):
     """The pipeline of a MyoSam inference."""
@@ -44,14 +46,10 @@ class Pipeline(BaseModel):
         exclude=True,
     )
 
-    def uid(self) -> int:
-        """Return the uid of the pipeline."""
-        return hash(
-            str(self.myotube_image)
-            + str(self.nuclei_image)
-            + self.stardist_predictor.name
-            + self.myosam_predictor.name
-        )
+    def clear_cache(self) -> None:
+        """Clear cached properties."""
+        del self.myotube_image_np, self.nuclei_image_np
+        del self.myotube_image_hash, self.nuclei_image_hash
 
     @cached_property
     def myotube_image_np(self) -> np.ndarray:
@@ -60,6 +58,14 @@ class Pipeline(BaseModel):
     @cached_property
     def nuclei_image_np(self) -> np.ndarray:
         return cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
+
+    @cached_property
+    def myotube_image_hash(self) -> str:
+        return hash_array(self.myotube_image_np)
+
+    @cached_property
+    def nuclei_image_hash(self) -> str:
+        return hash_array(self.nuclei_image_np)
 
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_exists(cls, v) -> str:
@@ -75,31 +81,49 @@ class Pipeline(BaseModel):
                 raise ValueError(f"File {v} must be a png, jpeg or tif.")
         return v
 
-    def execute(self) -> MyoSamInferenceResult:
-        """Execute the pipeline."""
+    def execute(
+        self,
+        myotubes_cached: Optional[str] = None,
+        nucleis_cached: Optional[str] = None,
+    ) -> MyoSamInferenceResult:
+        """
+        Execute the pipeline of the inference.
+            If myotubes or nucleis are not propvided, cached.
+            They will be predicted.
+        """
         if not self.myotube_image and not self.nuclei_image:
             raise ValueError(
                 "At least one of myotube or nuclei image must be provided."
             )
         if self.myotube_image:
-            myotube_pred = self.myosam_predictor.predict(
-                self.myotube_image_np, self.measure_unit
-            )
-            myotubes = Myotubes.model_validate({"myo_objects": myotube_pred})
+            if not myotubes_cached:
+                myotube_pred = self.myosam_predictor.predict(
+                    self.myotube_image_np, self.measure_unit
+                )
+                myotubes = Myotubes.model_validate(
+                    {"myo_objects": myotube_pred}
+                )
+            else:
+                myotubes = Myotubes.model_validate(myotubes_cached)
         else:
             myotubes = Myotubes()
 
         if self.nuclei_image:
-            nuclei_pred = self.stardist_predictor.predict(self.nuclei_image_np)
-            nucleis = Nucleis.parse_nucleis(
-                **nuclei_pred,
-                myotubes=myotubes,
-                measure_unit=self.measure_unit,
-            )
-            clusters = NucleiClusters.compute_clusters(nucleis)
+            if not nucleis_cached:
+                nuclei_pred = self.stardist_predictor.predict(
+                    self.nuclei_image_np
+                )
+                nucleis = Nucleis.parse_nucleis(
+                    **nuclei_pred,
+                    myotubes=myotubes,
+                    measure_unit=self.measure_unit,
+                )
+            else:
+                nucleis = Nucleis.model_validate(nucleis_cached)
         else:
             nucleis = Nucleis()
-            clusters = NucleiClusters.compute_clusters(nucleis)
+
+        clusters = NucleiClusters.compute_clusters(nucleis)
 
         info = InformationMetrics(
             myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters

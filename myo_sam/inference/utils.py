@@ -1,4 +1,11 @@
 import numpy as np
+import hashlib
+
+
+def hash_array(arr: np.ndarray):
+    """Hash a numpy array for caching."""
+    hash = hashlib.sha256(arr.tobytes())
+    return hash.hexdigest()
 
 
 def split_image_into_patches(
