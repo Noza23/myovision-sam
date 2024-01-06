@@ -79,7 +79,7 @@ class MyoSamPredictor(BaseModel):
     def amg(self):
         return SamAutomaticMaskGenerator(self.model, **self.amg_config)
 
-    def update_config(self, config: dict[str, Any]) -> None:
+    def update_amg_config(self, config: dict[str, Any]) -> None:
         """Update the configuration of the predictor."""
         self.amg_config = AmgConfig.model_validate(config)
 
