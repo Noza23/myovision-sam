@@ -6,7 +6,8 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field, field_validator, PrivateAttr
 
-from .predictors import StarDistPredictor, MyoSamPredictor
+from .predictors.myosam_predictor import MyoSamPredictor
+from .predictors.stardist_predictor import StarDistPredictor
 
 from .models.base import Myotubes, Nucleis, NucleiClusters
 from .models.information import InformationMetrics
