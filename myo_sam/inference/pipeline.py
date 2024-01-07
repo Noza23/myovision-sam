@@ -11,7 +11,6 @@ from .predictors.stardist_predictor import StarDistPredictor
 
 from .models.base import Myotubes, Nucleis, NucleiClusters
 from .models.information import InformationMetrics
-from .models.performance import PerformanceMetrics
 from .models.result import MyoSamInferenceResult
 
 from .utils import hash_array
@@ -152,14 +151,10 @@ class Pipeline(BaseModel):
         info = InformationMetrics(
             myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
         )
-        perf = PerformanceMetrics.compute_performance(
-            predictions=myotubes, ground_truths=myotubes
-        )
-
         result = MyoSamInferenceResult(
             myotube_image=self.myotube_image,
             nuclei_image=self.nuclei_image,
             information_metrics=info,
-            performance_metrics=perf,
+            performance_metrics=None,
         )
         return result
