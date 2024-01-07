@@ -2,9 +2,9 @@ import numpy as np
 import hashlib
 
 
-def hash_array(arr: np.ndarray):
+def hash_bytes(bb: bytes) -> str:
     """Hash a numpy array for caching."""
-    hash = hashlib.sha256(arr.tobytes())
+    hash = hashlib.sha256(bb)
     return hash.hexdigest()
 
 

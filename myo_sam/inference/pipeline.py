@@ -13,7 +13,7 @@ from .models.base import Myotubes, Nucleis, NucleiClusters
 from .models.information import InformationMetrics
 from .models.result import MyoSamInferenceResult
 
-from .utils import hash_array
+from .utils import hash_bytes
 
 
 class Pipeline(BaseModel):
@@ -72,23 +72,24 @@ class Pipeline(BaseModel):
             img = cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
         return img
 
-    @cached_property
     def myotube_image_hash(self) -> str:
-        return hash_array(self.myotube_image_np)
+        return hash_bytes(
+            (
+                self.myotube_image_np.tobytes()
+                + self._myosam_predictor.amg_config.model_dump_json().encode()
+            )
+        )
 
-    @cached_property
     def nuclei_image_hash(self) -> str:
-        return hash_array(self.nuclei_image_np)
+        return hash_bytes(self.nuclei_image_np.tobytes())
 
     def set_nuclei_image(self, image: Union[str, bytes]) -> None:
         """Set the nuclei image."""
         self.nuclei_image = image
-        self.clear_cache()
 
     def set_myotube_image(self, image: Union[str, bytes]) -> None:
         """Set the myotube image."""
         self.myotube_image = image
-        self.clear_cache()
 
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_exists(cls, v) -> str:

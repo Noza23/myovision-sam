@@ -35,4 +35,3 @@ class AmgConfig(BaseModel):
     min_mask_region_area: int = Field(
         description="Minimum area of mask region", default=100
     )
-    output_mode: str = Field(description="Output mode", default="binary_mask")
