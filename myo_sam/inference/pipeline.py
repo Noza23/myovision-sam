@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Optional
+from typing import Optional, Union
 from pathlib import Path
 
 import cv2
@@ -23,12 +23,12 @@ class Pipeline(BaseModel):
     class Config:
         validate_assignment = True
 
-    myotube_image: Optional[str] = Field(
+    myotube_image: Optional[Union[str, bytes]] = Field(
         description="Path to Myotube Image",
         default=None,
         validate_default=False,
     )
-    nuclei_image: Optional[str] = Field(
+    nuclei_image: Optional[Union[str, bytes]] = Field(
         description="Path to Myoblast Image",
         default=None,
         validate_default=False,
@@ -52,13 +52,26 @@ class Pipeline(BaseModel):
     def myotube_image_np(self) -> np.ndarray:
         if not self.myotube_image:
             raise ValueError("Myotube image must be set.")
-        return cv2.cvtColor(cv2.imread(self.myotube_image), cv2.COLOR_BGR2RGB)
+        if isinstance(self.myotube_image, bytes):
+            img = cv2.imdecode(
+                np.frombuffer(self.myotube_image, np.uint8), cv2.IMREAD_COLOR
+            )
+        elif isinstance(self.myotube_image, str):
+            img = cv2.imread(self.myotube_image, cv2.IMREAD_COLOR)
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     @cached_property
     def nuclei_image_np(self) -> np.ndarray:
         if not self.nuclei_image:
             raise ValueError("Nuclei image must be set.")
-        return cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
+        if isinstance(self.nuclei_image, bytes):
+            img = cv2.imdecode(
+                np.frombuffer(self.nuclei_image, np.uint8),
+                cv2.IMREAD_GRAYSCALE,
+            )
+        elif isinstance(self.nuclei_image, str):
+            img = cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
+        return img
 
     @cached_property
     def myotube_image_hash(self) -> str:
@@ -80,14 +93,14 @@ class Pipeline(BaseModel):
 
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_exists(cls, v) -> str:
-        if v:
+        if v and isinstance(v, str):
             if not Path(v).exists():
                 raise ValueError(f"File {v} does not exist.")
         return v
 
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_extension(cls, v) -> str:
-        if v:
+        if v and isinstance(v, str):
             if not Path(v).suffix not in [".png", ".jpeg", ".tif", ".tiff"]:
                 raise ValueError(f"File {v} must be a png, jpeg or tif.")
         return v
