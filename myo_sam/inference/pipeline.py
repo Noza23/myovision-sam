@@ -81,12 +81,12 @@ class Pipeline(BaseModel):
     def nuclei_image_hash(self) -> str:
         return hash_array(self.nuclei_image_np)
 
-    def set_nuclei_image(self, image: str) -> None:
+    def set_nuclei_image(self, image: Union[str, bytes]) -> None:
         """Set the nuclei image."""
         self.nuclei_image = image
         self.clear_cache()
 
-    def set_myotube_image(self, image: str) -> None:
+    def set_myotube_image(self, image: Union[str, bytes]) -> None:
         """Set the myotube image."""
         self.myotube_image = image
         self.clear_cache()
