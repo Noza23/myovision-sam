@@ -45,7 +45,6 @@ class Pipeline(BaseModel):
     def clear_cache(self) -> None:
         """Clear cached properties."""
         del self.myotube_image_np, self.nuclei_image_np
-        del self.myotube_image_hash, self.nuclei_image_hash
 
     @cached_property
     def myotube_image_np(self) -> np.ndarray:
@@ -72,7 +71,7 @@ class Pipeline(BaseModel):
             img = cv2.imread(self.nuclei_image, cv2.IMREAD_GRAYSCALE)
         return img
 
-    def myotube_image_hash(self) -> str:
+    def myotube_hash(self) -> str:
         return hash_bytes(
             (
                 self.myotube_image_np.tobytes()
@@ -80,7 +79,7 @@ class Pipeline(BaseModel):
             )
         )
 
-    def nuclei_image_hash(self) -> str:
+    def nuclei_hash(self) -> str:
         return hash_bytes(self.nuclei_image_np.tobytes())
 
     def set_nuclei_image(self, image: Union[str, bytes]) -> None:
