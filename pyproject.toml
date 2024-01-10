@@ -10,6 +10,18 @@ maintainers = [
   {name = "Giorgi Nozadze", email = "giorginozadze23@yahoo.com"}
 ]
 description = "Fine-Tuning SAM for Instance Segmentation of Myotube Microscopy Images"
+dependencies = [
+  "torch>=1.12.0",
+  "torchvision>=0.13.0",
+  "opencv-python-headless>=4.8",
+  "numpy>=1.25.1",
+  "monai>=1.2.0",
+  "segment-anything @ git+https://github.com/facebookresearch/segment-anything.git",
+  "stardist>=0.8.5",
+  "hydra-core>=1.3.0",
+  "pydantic>=2.3.0",
+  "networkx>=3.1"
+]
 keywords = ["SAM", "Computer Vision", "Instance Segmentation", "Myotube", "Microscopy"]
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -24,19 +36,6 @@ test = [
   "networkx>=3.1",
   "pydantic>=2.3.0",
   "opencv-python-headless>=4.8"
-]
-
-dependencies = [
-  "torch>=1.12.0",
-  "torchvision>=0.13.0",
-  "opencv-python-headless>=4.8",
-  "numpy>=1.25.1",
-  "monai>=1.2.0",
-  "segment-anything @ git+https://github.com/facebookresearch/segment-anything.git",
-  "stardist>=0.8.5",
-  "hydra-core>=1.3.0",
-  "pydantic>=2.3.0",
-  "networkx>=3.1"
 ]
 
 [tool.setuptools]
