@@ -27,8 +27,20 @@ class Pipeline(BaseModel):
         default=None,
         validate_default=False,
     )
+    myotube_image_name: Optional[str] = Field(
+        description="Name of Myotube Image",
+        default=None,
+        validate_default=False,
+    )
+
     nuclei_image: Optional[Union[str, bytes]] = Field(
-        description="Path to Myoblast Image",
+        description="Path to Nuclei Image",
+        default=None,
+        validate_default=False,
+    )
+
+    nuclei_image_name: Optional[str] = Field(
+        description="Name of Nuclei Image",
         default=None,
         validate_default=False,
     )
@@ -82,12 +94,14 @@ class Pipeline(BaseModel):
     def nuclei_hash(self) -> str:
         return hash_bytes(self.nuclei_image_np.tobytes())
 
-    def set_nuclei_image(self, image: Union[str, bytes]) -> None:
+    def set_nuclei_image(self, image: Union[str, bytes], name: str) -> None:
         """Set the nuclei image."""
+        self.nuclei_image_name = name
         self.nuclei_image = image
 
-    def set_myotube_image(self, image: Union[str, bytes]) -> None:
+    def set_myotube_image(self, image: Union[str, bytes], name: str) -> None:
         """Set the myotube image."""
+        self.myotube_image_name = name
         self.myotube_image = image
 
     @field_validator("myotube_image", "nuclei_image")
