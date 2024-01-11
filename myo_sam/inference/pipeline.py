@@ -45,7 +45,7 @@ class Pipeline(BaseModel):
         validate_default=False,
     )
 
-    measure_unit: int = Field(
+    measure_unit: float = Field(
         description="The measure unit of the images.", default=1
     )
     _stardist_predictor: StarDistPredictor = PrivateAttr(
@@ -104,6 +104,10 @@ class Pipeline(BaseModel):
         self.myotube_image_name = name
         self.myotube_image = image
 
+    def set_measure_unit(self, mu: float) -> None:
+        """Update the measure unit of the pipeline."""
+        self.measure_unit = mu
+
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_exists(cls, v) -> str:
         if v and isinstance(v, str):
@@ -134,8 +138,9 @@ class Pipeline(BaseModel):
             )
         if self.myotube_image:
             if not myotubes_cached:
+                self._myosam_predictor.set_measure_unit(self.measure_unit)
                 myotube_pred = self._myosam_predictor.predict(
-                    self.myotube_image_np, self.measure_unit
+                    self.myotube_image_np
                 )
                 myotubes = Myotubes.model_validate(
                     {"myo_objects": myotube_pred}
