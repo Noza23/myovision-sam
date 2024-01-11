@@ -171,8 +171,8 @@ class Pipeline(BaseModel):
             myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
         )
         result = MyoSamInferenceResult(
-            myotube_image=self.myotube_image,
-            nuclei_image=self.nuclei_image,
+            myotube_image=self.myotube_image_name,
+            nuclei_image=self.nuclei_image_name,
             information_metrics=info,
             performance_metrics=None,
         )
