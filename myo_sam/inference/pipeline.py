@@ -91,6 +91,12 @@ class Pipeline(BaseModel):
             )
         )
 
+    def save_myotube_image(self, path: str) -> None:
+        """Save the myotube image."""
+        cv2.imwrite(
+            path, cv2.cvtColor(self.myotube_image_np, cv2.COLOR_RGB2BGR)
+        )
+
     def nuclei_hash(self) -> str:
         return hash_bytes(self.nuclei_image_np.tobytes())
 
