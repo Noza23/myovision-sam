@@ -5,9 +5,8 @@ import numpy as np
 import cv2
 
 from segment_anything import SamAutomaticMaskGenerator, SamPredictor
-
-from myo_sam.myosam import MyoSam
-from myo_sam.build_myosam import build_myosam_inference
+from segment_anything.modeling import Sam
+from myo_sam.inference.build_myosam import build_myosam_inference
 
 from .config import AmgConfig
 from ..models.base import Myotube
@@ -18,7 +17,7 @@ class MyoSamPredictor:
 
     def __init__(self) -> None:
         self.amg_config: AmgConfig = AmgConfig()
-        self.model: Union[MyoSam, None] = None
+        self.model: Union[Sam, None] = None
         self.measure_unit: float = 1
 
     def set_measure_unit(self, mu: float) -> None:
