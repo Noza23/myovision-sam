@@ -152,7 +152,6 @@ class Pipeline(BaseModel):
             cv2.drawContours(img, myo_rois, -1, (0, 255, 0), thickness)
         if nuclei_rois:
             cv2.drawContours(img, nuclei_rois, -1, (255, 0, 0), thickness - 1)
-
         return img
 
     def execute(
