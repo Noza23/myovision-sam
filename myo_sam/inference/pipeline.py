@@ -91,11 +91,14 @@ class Pipeline(BaseModel):
             )
         )
 
+    @staticmethod
+    def save_image(path: str, img: np.ndarray) -> None:
+        """saving image on disk"""
+        cv2.imwrite(path, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
     def save_myotube_image(self, path: str) -> None:
         """Save the myotube image."""
-        cv2.imwrite(
-            path, cv2.cvtColor(self.myotube_image_np, cv2.COLOR_RGB2BGR)
-        )
+        self.save_image(path, self.myotube_image_np)
 
     def nuclei_hash(self) -> str:
         return hash_bytes(self.nuclei_image_np.tobytes())
