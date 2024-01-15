@@ -18,7 +18,7 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install --upgrade pip
-          pip install -e .[inference, test]
+          pip install -e '.[inference, test]'
 
       - name: Test with coverage
         run: |
