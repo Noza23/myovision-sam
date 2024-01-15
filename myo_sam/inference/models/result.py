@@ -1,8 +1,6 @@
-from typing import Optional
 import json
 
 from pydantic import BaseModel, Field
-from .performance import PerformanceMetrics
 from .information import InformationMetrics
 
 
@@ -17,11 +15,6 @@ class MyoSamInferenceResult(BaseModel):
     # The information metrics
     information_metrics: InformationMetrics = Field(
         description="The information metrics of the inference.",
-    )
-    # The performance metrics
-    performance_metrics: Optional[PerformanceMetrics] = Field(
-        description="The performance metrics of the inference.",
-        default=None,
     )
 
     def save(self, path: str) -> None:

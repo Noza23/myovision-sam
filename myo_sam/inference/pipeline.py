@@ -128,6 +128,34 @@ class Pipeline(BaseModel):
                 raise ValueError(f"File {v} must be a png, jpeg or tif.")
         return v
 
+    def draw_contours_on_myotube_image(
+        self,
+        myotubes: Optional[Myotubes] = None,
+        nucleis: Optional[Nucleis] = None,
+        thickness: int = 3,
+    ) -> np.ndarray:
+        """Draw the contours of the myotubes on the myotube image."""
+        if not myotubes:
+            myotubes = Myotubes()
+        if not nucleis:
+            nucleis = Nucleis()
+        if not self.myotube_image:
+            h, w = self.nuclei_image_np.shape
+            img = np.zeros((h, w, 3), dtype=np.uint8)
+        else:
+            img = self.myotube_image_np.copy()
+
+        myo_rois = [myo.roi_coords_np for myo in myotubes]
+        nuclei_rois = [nuclei.roi_coords_np for nuclei in nucleis]
+
+        if myo_rois:
+            cv2.drawContours(img, myo_rois, -1, (0, 255, 0), thickness)
+        if nuclei_rois:
+            cv2.drawContours(
+                img, nuclei_rois, -1, (255, 0, 0), max(thickness - 1, 0)
+            )
+        return img
+
     def execute(
         self,
         myotubes_cached: Optional[str] = None,
@@ -180,6 +208,5 @@ class Pipeline(BaseModel):
             myotube_image=self.myotube_image_name,
             nuclei_image=self.nuclei_image_name,
             information_metrics=info,
-            performance_metrics=None,
         )
         return result
