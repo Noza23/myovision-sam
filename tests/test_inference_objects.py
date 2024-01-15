@@ -7,7 +7,6 @@ from myo_sam.inference.models.base import (
     NucleiClusters,
 )
 from myo_sam.inference.models.information import InformationMetrics
-from myo_sam.inference.models.performance import PerformanceMetrics
 from myo_sam.inference.models.result import MyoSamInferenceResult
 
 nuclei_pred = np.load(
@@ -119,14 +118,10 @@ def test_result():
     info = InformationMetrics(
         myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
     )
-    perf = PerformanceMetrics.compute_performance(
-        predictions=myotubes, ground_truths=myotubes
-    )
     result = MyoSamInferenceResult(
         myotube_image="myotube_image",
         nuclei_image="nuclei_image",
         information_metrics=info,
-        performance_metrics=perf,
     )
     assert result
     assert isinstance(result, MyoSamInferenceResult)
