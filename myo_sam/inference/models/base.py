@@ -209,6 +209,10 @@ class MyoObjects(BaseModel):
         for myo in self.myo_objects:
             myo.measure_unit = measure_unit
 
+    def move_object_to_end(self, idx: int) -> None:
+        """Moves an object to the end of the list."""
+        self.myo_objects.append(self.myo_objects.pop(idx))
+
     @property
     def reverse_mapping(self) -> dict[Optional[int], list[int]]:
         """Reverse mapping of the myoobjects to other myoobjects."""
