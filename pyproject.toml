@@ -25,14 +25,15 @@ license = {file = "LICENSE"}
 [project.optional-dependencies]
 inference = [
   "opencv-python-headless>=4.8",
-  "tensorflow>=2.15",
-  "stardist>=0.8.5",
   "pydantic>=2.3.0",
   "networkx>=3.1"
 ]
+stardist = ["tensorflow>=2.15", "stardist>=0.8.5"]
 
 dev = ["mypy", "pre-commit", "ruff"]
 test = ["coverage", "pytest"]
+
+all = ["myo_sam[inference, stardist]"]
 
 [tool.setuptools]
 include-package-data = false
