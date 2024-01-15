@@ -22,19 +22,17 @@ class MyoObject(BaseModel):
     """Base Class for MyoObjects: Myotubes and Nucleis."""
 
     identifier: int = Field(description="Identifier of the myoobject.")
-    # roi_coords are computed using cv2.findContours conts[0].tolist()
-    # cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     roi_coords: list[list[int]] = Field(description="ROI boundaries")  # (x, y)
     measure_unit: float = Field(description="Measure unit of the myoobject.")
 
     def __str__(self):
         return (
-            f"identifier: {self.identifier}"
-            f"measure_unit: {self.measure_unit}"
-            f"area: {self.area}"
-            f"perimeter: {self.perimeter}"
-            f"roundness: {self.roundness}"
-            f"eligse: {self.elipse}"
+            f"identifier: {self.identifier}\n"
+            f"measure_unit: {self.measure_unit}\n"
+            f"area: {self.area}\n"
+            f"perimeter: {self.perimeter}\n"
+            f"roundness: {self.roundness}\n"
+            f"elipse: {self.elipse}\n"
         )
 
     @cached_property
@@ -198,11 +196,27 @@ class Nuclei(MyoObject):
 class MyoObjects(BaseModel):
     """Base class for myotubes and myoblasts and other detected objects."""
 
-    myo_objects: list[MyoObject] = Field("List of myoobjects.")
+    myo_objects: list[MyoObject] = Field(
+        description="List of myoobjects.", default_factory=list
+    )
     mapping: dict[int, list[Optional[int]]] = Field(
         description="Mapping of the myoobjects to other myoobjects.",
-        default_factory=dict,
+        default_factory=defaultdict,
     )
+
+    def adjust_measure_unit(self, measure_unit: float) -> None:
+        """Adjust the measure unit of the nucleis."""
+        for myo in self.myo_objects:
+            myo.measure_unit = measure_unit
+
+    @property
+    def reverse_mapping(self) -> dict[Optional[int], list[int]]:
+        """Reverse mapping of the myoobjects to other myoobjects."""
+        reverse_mapping = defaultdict(list)
+        for myo_id, myo_ids in self.mapping.items():
+            for myo_id_ in myo_ids:
+                reverse_mapping[myo_id_].append(myo_id)
+        return reverse_mapping
 
     def __str__(self):
         return f"num_objects: {len(self.myo_objects)}" f"area: {self.area}"
@@ -220,6 +234,8 @@ class MyoObjects(BaseModel):
         return len(self.myo_objects)
 
     def __getitem__(self, idx: int) -> MyoObject:
+        if isinstance(idx, slice):
+            return self.__class__(myo_objects=self.myo_objects[idx])
         return self.myo_objects[idx]
 
     def __iter__(self):
@@ -232,7 +248,9 @@ class MyoObjects(BaseModel):
 class Myotubes(MyoObjects):
     """The myotubes of a MyoSam inference."""
 
-    myo_objects: list[Myotube] = Field("List of myotubes.")
+    myo_objects: list[Myotube] = Field(
+        description="List of myotubes.", default_factory=list
+    )
 
     def get_myotube_by_id(self, id: int) -> Myotube:
         return [m for m in self.myo_objects if m.identifier == id][0]
@@ -247,9 +265,8 @@ class Myotubes(MyoObjects):
 class Nucleis(MyoObjects):
     """The nucleis of a MyoSam inference."""
 
-    myo_objects: list[Nuclei] = Field("List of nucleis.")
-    mapping: dict[int, list[Optional[int]]] = Field(
-        description="Mapping of the nucleis to myotubes."
+    myo_objects: list[Nuclei] = Field(
+        description="List of nucleis.", default_factory=list
     )
 
     @property
@@ -282,6 +299,7 @@ class Nucleis(MyoObjects):
         roi_coords: np.ndarray,
         centroids: np.ndarray,
         myotubes: Myotubes,
+        measure_unit: float = 1,
         probs: Optional[np.ndarray] = None,
     ) -> "Nucleis":
         """
@@ -318,7 +336,7 @@ class Nucleis(MyoObjects):
             Nuclei(
                 identifier=i,
                 roi_coords=coords,
-                measure_unit=1,
+                measure_unit=measure_unit,
                 myotube_ids=mapp[i],
                 centroid=centroids[i],
                 prob=probs[i] if probs is not None else None,
@@ -332,16 +350,16 @@ class Nucleis(MyoObjects):
 class NucleiCluster(MyoObjects):
     """A detected nuclei cluster."""
 
-    cluster_id: str = Field("Cluster identifier")
-    myotube_id: int = Field("Myotube identifier")
+    cluster_id: str = Field(description="Cluster identifier")
+    myotube_id: int = Field(description="Myotube identifier")
     myo_objects: list[Nuclei] = Field(description="List of nucleis.")
 
     def __str__(self):
         return (
-            f"cluster_id: {self.cluster_id}"
-            f"myotube_id: {self.myotube_id}"
-            f"num_nuclei: {self.num_nuclei}"
-            f"area: {self.area}"
+            f"cluster_id: {self.cluster_id}\n"
+            f"myotube_id: {self.myotube_id}\n"
+            f"num_nuclei: {self.num_nuclei}\n"
+            f"area: {self.area}\n"
         )
 
     @computed_field  # type: ignore[misc]
@@ -371,7 +389,7 @@ class NucleiClusters(BaseModel):
     @classmethod
     def compute_clusters(cls, nucleis: Nucleis) -> "NucleiClusters":
         """Computes the clusters of nucleis."""
-        mapping = nucleis.mapping
+        mapping = nucleis.reverse_mapping
         nuclei_clusters = []
         for myo_id, nucleis_ids in mapping.items():
             if len(nucleis_ids) < 2:

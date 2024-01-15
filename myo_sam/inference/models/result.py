@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
+from typing import Optional
+import json
+
+from pydantic import BaseModel, Field
 from .performance import PerformanceMetrics
 from .information import InformationMetrics
-from pathlib import Path
 
 
 class MyoSamInferenceResult(BaseModel):
@@ -9,20 +11,24 @@ class MyoSamInferenceResult(BaseModel):
     The result of a MyoSam inference.
     """
 
-    myotube_image: str = Field(..., example="~/myotube_image.png")
-    myoblast_image: str = Field(..., example="~/myoblast_image.png")
+    myotube_image: str = Field(description="Myotube Image name")
+    nuclei_image: str = Field(description="Myoblast Image name")
 
-    # The performance metrics
-    performance_metrics: PerformanceMetrics = Field(
-        ..., example=PerformanceMetrics()
-    )
     # The information metrics
     information_metrics: InformationMetrics = Field(
-        ..., example=InformationMetrics()
+        description="The information metrics of the inference.",
+    )
+    # The performance metrics
+    performance_metrics: Optional[PerformanceMetrics] = Field(
+        description="The performance metrics of the inference.",
+        default=None,
     )
 
-    @field_validator("myotube_image", "myoblast_image")
-    def validate_file_exists(cls, v):
-        if not Path(v).exists():
-            raise ValueError(f"File {v} does not exist.")
-        return v
+    def save(self, path: str) -> None:
+        """
+        Save the result of the inference.
+
+        Args:
+            path: The path to save the result.
+        """
+        json.dump(self.model_dump(mode="json"), open(path, "w"))

@@ -1,5 +1,5 @@
 import torch
-from myo_sam.utils import (
+from myo_sam.training.utils import (
     sample_initial_points,
     sample_points_from_error_region,
 )

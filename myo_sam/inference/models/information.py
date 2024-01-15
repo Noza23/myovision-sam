@@ -10,6 +10,18 @@ class InformationMetrics(BaseModel):
     nucleis: Nucleis = Field(description="The nucleis.")
     nuclei_clusters: NucleiClusters = Field(description="nuclei clusters.")
 
+    def __str__(self) -> str:
+        return (
+            f"Total Myotubes: {self.total_myotubes}\n"
+            f"Total Nuclei: {self.total_nucleis}\n"
+            f"Total Nuclei Clusters: {self.total_nuclei_clusters}\n"
+        )
+
+    def adjust_measure_unit(self, mu: float) -> None:
+        """Adjust the measure unit of the metrics."""
+        self.myotubes.adjust_measure_unit(mu)
+        self.nucleis.adjust_measure_unit(mu)
+
     @computed_field  # type: ignore[misc]
     @property
     def total_myotubes(self) -> int:
@@ -42,7 +54,7 @@ class InformationMetrics(BaseModel):
 
     @computed_field  # type: ignore[misc]
     @property
-    def total_fusion_index(self) -> int:
+    def total_fusion_index(self) -> float:
         """The total fusion index."""
         return self.nucleis.total_fusion_index
 
