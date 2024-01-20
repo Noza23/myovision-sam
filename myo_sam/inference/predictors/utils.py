@@ -18,7 +18,10 @@ def remove_redundant_masks(roi_coords: list[np.ndarray]) -> list[np.ndarray]:
     angles = np.array([box[2] for box in boxes])
     areas = np.array([np.prod(box[1]) for box in boxes])
     boxes_rot = rotate_objects(box_points, angles, centers)[np.argsort(areas)]
-    mask = [np.where(box_in_box(box, boxes_rot))[0][0] for box in boxes_rot]
+    mask = [
+        np.where(box_in_box(box, boxes_rot[i:]))[0][-1] + i
+        for i, box in enumerate(boxes_rot)
+    ]
     return [roi_coords[i] for i in set(mask)]
 
 
