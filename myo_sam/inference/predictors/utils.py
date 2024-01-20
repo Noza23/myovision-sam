@@ -7,10 +7,10 @@ def remove_redundant_masks(roi_coords: list[np.ndarray]) -> list[np.ndarray]:
     Remove redundant masks from the ROI coordinates.
 
     Args:
-        batched roi coordinates of shape (B, N, 1, 2)
+        list of roi_coords.
 
     Returns:
-        batched filtered roi coordinates of shape (X<=B, N, 1, 2)
+        list of roi_coords without duplicates.
     """
     boxes = [cv2.minAreaRect(coord) for coord in roi_coords]
     box_points = np.array([cv2.boxPoints(box) for box in boxes])
@@ -33,6 +33,13 @@ def box_in_box(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     return np.all((box[0] >= boxes[:, 0]) & (box[-1] <= boxes[:, -1]), axis=1)
 
 
+def remove_disconnected_masks(roi_coords: np.ndarray):
+    """Remove disconnected masks."""
+    # Background is always connected
+    mask = [cv2.connectedComponents(coord)[0] > 2 for coord in roi_coords]
+    return roi_coords[mask]
+
+
 def merge_masks_at_splitponits(
     roi_coords: np.ndarray, grid_size: tuple[int, int]
 ):
@@ -47,13 +54,6 @@ def merge_masks_at_splitponits(
 
     # TODO: Return new merged coordinates
     pass
-
-
-def remove_disconnected_masks(roi_coords: np.ndarray):
-    """Remove disconnected masks."""
-    # Background is always connected
-    mask = [cv2.connectedComponents(coord)[0] > 2 for coord in roi_coords]
-    return roi_coords[mask]
 
 
 def rotate_objects(
