@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def remove_redundant_masks(roi_coords: np.ndarray) -> np.ndarray:
+def remove_redundant_masks(roi_coords: list[np.ndarray]) -> list[np.ndarray]:
     """
     Remove redundant masks from the ROI coordinates.
 
@@ -19,10 +19,10 @@ def remove_redundant_masks(roi_coords: np.ndarray) -> np.ndarray:
     areas = np.array([np.prod(box[1]) for box in boxes])
     boxes_rot = rotate_objects(box_points, angles, centers)[np.argsort(areas)]
     mask = [np.where(box_in_box(box, boxes_rot))[0][0] for box in boxes_rot]
-    return roi_coords[np.unique(mask)]
+    return [roi_coords[i] for i in mask]
 
 
-def box_in_box(box: np.ndarray, boxes: np.ndarray) -> bool:
+def box_in_box(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     """
     Check if a box is inside another box.
 
@@ -30,13 +30,14 @@ def box_in_box(box: np.ndarray, boxes: np.ndarray) -> bool:
         box: (4, 2) array of points
         boxes: (N, 4, 2) array of points
     """
-    return (box[0] >= boxes[:, 0]) & (box[-1] <= boxes[:, -1])
+    return np.all((box[0] >= boxes[:, 0]) & (box[-1] <= boxes[:, -1]), axis=1)
 
 
 def merge_masks_at_splitponits(
-    roi_coords: list[list[list[int]]], grid_size: tuple[int, int]
+    roi_coords: np.ndarray, grid_size: tuple[int, int]
 ):
     """Merge masks at the split points."""
+
     # TODO: Find instances on edges
     # TODO: Find Counterparts and merge them
 
@@ -68,7 +69,7 @@ def rotate_objects(
 
     Returns:
         sorted rotated points array of shape (B, N, 2)
-        (In case of a rectangle, bottom_left, top_left, top_right, bottom_right)
+        (In case of a rect: bottom_left, top_left, top_right, bottom_right)
     """
     rad_angles = np.radians(angles)
     rot_mat = np.array(
