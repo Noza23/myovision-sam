@@ -51,6 +51,7 @@ def merge_masks_at_splitponits(
     grid: tuple[int, int],
     patch_size: tuple[int, int],
     iou_threshold: float = 0.85,
+    max_offset: int = 1,
 ) -> list[np.ndarray]:
     """
     Merge masks at the split points.
@@ -67,7 +68,7 @@ def merge_masks_at_splitponits(
         axis = 0
         edges_x = np.arange(0, grid[1] * patch_size[1], patch_size[1])[1:]
         for edge in edges_x:
-            edges = np.arange(edge - 1, edge + 2)
+            edges = np.arange(edge - max_offset, edge + max_offset + 1)
             is_on_edge_x = [is_on_edge(roi, edges, axis) for roi in roi_coords]
             edge_x_insts = [
                 roi for i, roi in zip(is_on_edge_x, roi_coords) if i
@@ -85,7 +86,7 @@ def merge_masks_at_splitponits(
         axis = 1
         edges_y = np.arange(0, grid[0] * patch_size[0], patch_size[0])[1:]
         for edge in edges_y:
-            edges = np.arange(edge - 1, edge + 2)
+            edges = np.arange(edge - max_offset, edge + max_offset + 1)
             is_on_edge_y = [is_on_edge(roi, edges, axis) for roi in roi_coords]
             edge_y_insts = [
                 roi for i, roi in zip(is_on_edge_y, roi_coords) if i
