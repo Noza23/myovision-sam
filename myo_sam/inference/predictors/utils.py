@@ -17,7 +17,10 @@ def remove_redundant_masks(roi_coords: list[np.ndarray]) -> list[np.ndarray]:
     centers = np.array([box[0] for box in boxes])
     angles = np.array([box[2] for box in boxes])
     areas = np.array([np.prod(box[1]) for box in boxes])
-    boxes_rot = rotate_objects(box_points, angles, centers)[np.argsort(areas)]
+    order_i = np.argsort(areas)
+    boxes_rot = rotate_objects(box_points, angles, centers)[order_i]
+    roi_coords = [roi_coords[i] for i in order_i]
+    # 5 // 5 esbox [-1]
     mask = [
         np.where(box_in_box(box, boxes_rot[i:]))[0][-1] + i
         for i, box in enumerate(boxes_rot)
@@ -47,6 +50,7 @@ def merge_masks_at_splitponits(
     roi_coords: list[np.ndarray],
     grid: tuple[int, int],
     patch_size: tuple[int, int],
+    iou_threshold: float = 0.85,
 ) -> list[np.ndarray]:
     """
     Merge masks at the split points.
@@ -59,27 +63,65 @@ def merge_masks_at_splitponits(
     Returns:
         list of roi_coords merged at the split points.
     """
-    edges_y = np.arange(0, grid[0] * patch_size[0], patch_size[0])[1:-1]
-    edges_x = np.arange(0, grid[1] * patch_size[1], patch_size[1])[1:-1]
+    if grid[1] > 1:
+        axis = 0
+        edges_x = np.arange(0, grid[1] * patch_size[1], patch_size[1])[1:]
+        for edge in edges_x:
+            edges = np.arange(edge - 1, edge + 2)
+            is_on_edge_x = [is_on_edge(roi, edges, axis) for roi in roi_coords]
+            edge_x_insts = [
+                roi for i, roi in zip(is_on_edge_x, roi_coords) if i
+            ]
+            edge_x_merged = merge_over_axis(
+                edge_x_insts, axis, edges, iou_threshold
+            )
+            # Merge not on edge with merged edge instances
+            roi_coords = [
+                roi for i, roi in zip(is_on_edge_x, roi_coords) if not i
+            ]
+            roi_coords.extend(edge_x_merged)
 
-    # Merge over x axis
-    edge_x_insts = [roi for roi in roi_coords if is_on_x_edge(roi, edges_x)]
-    edge_x_merged = merge_over_axis(edge_x_insts, axis=0, threshold=0.85)
-    # Merging over x axis
-    edge_y_insts = [roi for roi in edge_x_merged if is_on_y_edge(roi, edges_y)]
-    edge_y_merged = merge_over_axis(edge_y_insts, axis=1, threshold=0.85)
-    return edge_y_merged
+    if grid[0] > 1:
+        axis = 1
+        edges_y = np.arange(0, grid[0] * patch_size[0], patch_size[0])[1:]
+        for edge in edges_y:
+            edges = np.arange(edge - 1, edge + 2)
+            is_on_edge_y = [is_on_edge(roi, edges, axis) for roi in roi_coords]
+            edge_y_insts = [
+                roi for i, roi in zip(is_on_edge_y, roi_coords) if i
+            ]
+            edge_y_merged = merge_over_axis(
+                edge_y_insts, axis, edges, iou_threshold
+            )
+            # Merge not on edge with merged edge instances
+            roi_coords = [
+                roi for i, roi in zip(is_on_edge_y, roi_coords) if not i
+            ]
+            roi_coords.extend(edge_y_merged)
+
+    return roi_coords
+
+
+def is_on_edge(roi_coord: np.ndarray, edges_x: list, axis: int) -> bool:
+    """Check if the roi_coord is on the x edge of the patch."""
+    return np.any(roi_coord[:, :, 1 - axis] == edges_x)
 
 
 def merge_over_axis(
-    instances: list[np.ndarray], axis: int, threshold: float = 0.85
+    instances: list[np.ndarray],
+    axis: int,
+    edges: np.ndarray,
+    threshold: float = 0.85,
 ) -> list[np.ndarray]:
     """Merge instances over axis."""
     for i, inst in enumerate(instances):
         for j, inst_ref in enumerate(instances[i + 1 :]):
-            if is_one_object(inst, inst_ref, threshold=threshold, axis=axis):
+            if is_one_object(
+                inst, inst_ref, edges=edges, threshold=threshold, axis=axis
+            ):
                 instances[i] = merge_two_contours(inst, inst_ref)
-                _ = instances.pop(j)
+                instances.pop(i + j + 1)
+                j -= 1
     return instances
 
 
@@ -93,7 +135,7 @@ def merge_two_contours(cont1: np.ndarray, cont2: np.ndarray) -> np.ndarray:
     binary = np.zeros((h, w), dtype=np.uint8)
     binary[conts[:, :, 1], conts[:, :, 0]] = 1
     new_conts = cv2.findContours(
-        binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )[0][0]
     return new_conts + offset
 
@@ -101,23 +143,21 @@ def merge_two_contours(cont1: np.ndarray, cont2: np.ndarray) -> np.ndarray:
 def is_one_object(
     roi_coord: np.ndarray,
     roi_ref: np.ndarray,
+    edges: np.ndarray,
     threshold: float = 0.85,
     axis: int = 0,
 ) -> bool:
     """Check if the roi_coord and roi_ref is one object based on IoU."""
-    roi_i, ref_i = roi_coord[:, axis], roi_ref[:, axis]
-    iou = np.intersect1d(roi_i, ref_i).size / np.union1d(roi_i, ref_i).size
+    roi_i = roi_coord[:, :, axis][
+        np.any(roi_coord[:, :, 1 - axis] == edges, axis=1)
+    ]
+    ref_i = roi_ref[:, :, axis][
+        np.any(roi_ref[:, :, 1 - axis] == edges, axis=1)
+    ]
+    iou = np.intersect1d(roi_i, ref_i).size / (
+        np.union1d(roi_i, ref_i).size + 1e-6
+    )
     return iou > threshold
-
-
-def is_on_x_edge(roi_coord: np.ndarray, edges_x: list) -> bool:
-    """Check if the roi_coord is on the x edge of the patch."""
-    return np.any(roi_coord[:, 0] == edges_x)
-
-
-def is_on_y_edge(roi_coord: np.ndarray, edges_y: list) -> bool:
-    """Check if the roi_coord is on the y edge of the patch."""
-    return np.any(roi_coord[:, 1] == edges_y)
 
 
 def rotate_objects(
