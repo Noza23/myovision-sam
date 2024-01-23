@@ -144,6 +144,10 @@ def merge_masks_at_splitponits(
                 roi for i, roi in zip(is_on_edge_y, roi_coords) if not i
             ]
             roi_coords.extend(edge_y_merged)
+
+    if len(roi_coords) != len(ids):
+        raise ValueError("Merging went wrong.")
+
     return roi_coords, ids
 
 
