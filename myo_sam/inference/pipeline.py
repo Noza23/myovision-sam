@@ -182,7 +182,7 @@ class Pipeline(BaseModel):
             if not myotubes_cached:
                 self._myosam_predictor.set_measure_unit(self.measure_unit)
                 myotube_pred = self._myosam_predictor.predict(
-                    self.myotube_image_np
+                    self.myotube_image_np, all_contours=self.all_contours
                 )
                 myotubes = Myotubes.model_validate(
                     {"myo_objects": myotube_pred}
