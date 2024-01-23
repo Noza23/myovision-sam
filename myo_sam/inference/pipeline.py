@@ -45,6 +45,11 @@ class Pipeline(BaseModel):
         validate_default=False,
     )
 
+    all_contours: bool = Field(
+        default=False,
+        description="Wether to predict all contours or minimum required.",
+    )
+
     measure_unit: float = Field(
         description="The measure unit of the images.", default=1
     )

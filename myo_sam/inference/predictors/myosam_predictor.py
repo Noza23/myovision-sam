@@ -4,11 +4,13 @@ from typing import Any, Union
 import numpy as np
 import cv2
 
-from segment_anything import SamAutomaticMaskGenerator, SamPredictor
+
+from segment_anything import SamPredictor
 from segment_anything.modeling import Sam
 from myo_sam.inference.build_myosam import build_myosam_inference
 
 from .config import AmgConfig
+from .amg import CustomAutomaticMaskGenerator
 from ..models.base import Myotube
 
 
@@ -41,7 +43,7 @@ class MyoSamPredictor:
 
     @property
     def amg(self):
-        return SamAutomaticMaskGenerator(self.model, **self.amg_config)
+        return CustomAutomaticMaskGenerator(self.model, **self.amg_config)
 
     @property
     def predictor(self):
@@ -51,27 +53,37 @@ class MyoSamPredictor:
         """Update the configuration of the predictor."""
         self.amg_config = AmgConfig.model_validate(config)
 
-    def predict(self, image: np.ndarray) -> list[dict[str, Any]]:
+    def predict(
+        self, image: np.ndarray, all_contours: bool = False
+    ) -> list[dict[str, Any]]:
         """
         Predict the segmentation of the image.
 
         Args:
             image: RGB image to predict.
-            mu: The measure unit of the image.
+            all_contours: Whether to predict all contours or minimum required.
+            see: https://docs.opencv.org/3.4/d3/dc0/group__imgproc__shape.html#ga4303f45752694956374734a03c54d5ff
         """
         pred_dict = self.amg.generate(image)
-        return self.postprocess_pred(pred_dict, image)
+        return self.postprocess_pred(pred_dict, image, all_contours)
 
     def postprocess_pred(
-        self, pred_dict: list[dict[str, Any]], image: np.ndarray
+        self,
+        pred_dict: list[dict[str, Any]],
+        image: np.ndarray,
+        all_contours: bool = False,
     ) -> list[dict[str, Any]]:
         """Postprocess myosam prediction results."""
         pred_post = []
+        method = (
+            cv2.CHAIN_APPROX_NONE if all_contours else cv2.CHAIN_APPROX_SIMPLE
+        )
+
         for i, pred in enumerate(pred_dict):
             roi_cords = cv2.findContours(
                 pred["segmentation"].astype(np.uint8),
                 cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
+                method,
             )
             pred_post.append(
                 {
@@ -86,7 +98,10 @@ class MyoSamPredictor:
         return pred_dict
 
     def predict_point(
-        self, image: Union[np.ndarray, bytes], point: list[list[int]]
+        self,
+        image: Union[np.ndarray, bytes],
+        point: list[list[int]],
+        all_contours: bool = False,
     ) -> list[dict[str, Any]]:
         """Predict the segmentation for a single point [[x, y]]."""
         if isinstance(image, bytes):
@@ -100,14 +115,17 @@ class MyoSamPredictor:
             point_labels=np.array([1]),
             multimask_output=False,
         )
+        method = (
+            cv2.CHAIN_APPROX_NONE if all_contours else cv2.CHAIN_APPROX_SIMPLE
+        )
+        coords = cv2.findContours(
+            mask.astype(np.uint8), cv2.RETR_EXTERNAL, method
+        )[0][0]
+
         return Myotube.model_validate(
             {
                 "identifier": 0,
-                "roi_coords": cv2.findContours(
-                    mask.astype(np.uint8),
-                    cv2.RETR_EXTERNAL,
-                    cv2.CHAIN_APPROX_SIMPLE,
-                )[0][0],
+                "roi_coords": coords,
                 "measure_unit": self.measure_unit,
                 "pred_iou": score.item(),
                 "stability": None,
