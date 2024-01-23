@@ -1,14 +1,18 @@
 from pathlib import Path
 from typing import Any, Union
+from itertools import chain
 
 import numpy as np
 import cv2
 
-from segment_anything import SamAutomaticMaskGenerator, SamPredictor
+
+from segment_anything import SamPredictor
 from segment_anything.modeling import Sam
 from myo_sam.inference.build_myosam import build_myosam_inference
 
 from .config import AmgConfig
+from .amg import CustomAutomaticMaskGenerator
+from .utils import split_image_into_patches, merge_masks_at_splitponits
 from ..models.base import Myotube
 
 
@@ -41,7 +45,7 @@ class MyoSamPredictor:
 
     @property
     def amg(self):
-        return SamAutomaticMaskGenerator(self.model, **self.amg_config)
+        return CustomAutomaticMaskGenerator(self.model, **self.amg_config)
 
     @property
     def predictor(self):
@@ -51,42 +55,86 @@ class MyoSamPredictor:
         """Update the configuration of the predictor."""
         self.amg_config = AmgConfig.model_validate(config)
 
-    def predict(self, image: np.ndarray) -> list[dict[str, Any]]:
+    def predict(
+        self, image: np.ndarray, all_contours: bool = False
+    ) -> list[dict[str, Any]]:
         """
         Predict the segmentation of the image.
 
         Args:
             image: RGB image to predict.
-            mu: The measure unit of the image.
+            all_contours: Whether to predict all contours or minimum required.
+            see: https://docs.opencv.org/3.4/d3/dc0/group__imgproc__shape.html#ga4303f45752694956374734a03c54d5ff
         """
-        pred_dict = self.amg.generate(image)
-        return self.postprocess_pred(pred_dict, image)
+        method = (
+            cv2.CHAIN_APPROX_NONE if all_contours else cv2.CHAIN_APPROX_SIMPLE
+        )
+        patch_size = (1500, 1500)
+        grid, patches = split_image_into_patches(image, patch_size)
+        pred_pre = []
+        for patch in patches:
+            pred_dict = self.amg.generate(patch)
+            for i, pred in enumerate(pred_dict):
+                pred_pre.append(
+                    {
+                        "identifier": i,
+                        "roi_coords": cv2.findContours(
+                            pred["segmentation"].astype(np.uint8),
+                            cv2.RETR_EXTERNAL,
+                            method,
+                        )[0][0],
+                        "measure_unit": self.measure_unit,
+                        "pred_iou": pred["predicted_iou"],
+                        "stability": pred["stability_score"],
+                        "rgb_repr": patch[pred["segmentation"]].tolist(),
+                    }
+                )
+        return self.postprocess_pred(pred_pre, grid, patch_size)
 
     def postprocess_pred(
-        self, pred_dict: list[dict[str, Any]], image: np.ndarray
+        self,
+        pred_dict: list[dict[str, Any]],
+        grid: tuple[int, int],
+        patch_size: tuple[int, int],
     ) -> list[dict[str, Any]]:
         """Postprocess myosam prediction results."""
         pred_post = []
-        for i, pred in enumerate(pred_dict):
-            roi_cords = cv2.findContours(
-                pred["segmentation"].astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
-            )
+        conts, ids = merge_masks_at_splitponits(
+            [pred["segmentation"] for pred in pred_dict],
+            grid,
+            patch_size,
+            iou_threshold=0.5,
+            max_offset=1,
+        )
+
+        for i, lst in enumerate(ids):
             pred_post.append(
                 {
                     "identifier": i,
-                    "roi_coords": roi_cords[0][0],
+                    "roi_coords": conts[i],  # new merged conts
                     "measure_unit": self.measure_unit,
-                    "pred_iou": pred["predicted_iou"],
-                    "stability": pred["stability_score"],
-                    "rgb_repr": image[pred["segmentation"]].tolist(),
+                    "pred_iou": np.mean(
+                        [pred_dict[i]["pred_iou"] for i in lst],
+                        dtype=np.float16,
+                    ).item(),  # new mean iou
+                    "stability": np.mean(
+                        [pred_dict[i]["stability"] for i in lst],
+                        dtype=np.float16,
+                    ).item(),  # new mean stability
+                    "rgb_repr": list(
+                        chain.from_iterable(
+                            [pred_dict[i]["rgb_repr"] for i in lst]
+                        )  # new merged rgb_repr
+                    ),
                 }
             )
-        return pred_dict
+        return pred_post
 
     def predict_point(
-        self, image: Union[np.ndarray, bytes], point: list[list[int]]
+        self,
+        image: Union[np.ndarray, bytes],
+        point: list[list[int]],
+        all_contours: bool = False,
     ) -> list[dict[str, Any]]:
         """Predict the segmentation for a single point [[x, y]]."""
         if isinstance(image, bytes):
@@ -100,14 +148,17 @@ class MyoSamPredictor:
             point_labels=np.array([1]),
             multimask_output=False,
         )
+        method = (
+            cv2.CHAIN_APPROX_NONE if all_contours else cv2.CHAIN_APPROX_SIMPLE
+        )
+        coords = cv2.findContours(
+            mask.astype(np.uint8), cv2.RETR_EXTERNAL, method
+        )[0][0]
+
         return Myotube.model_validate(
             {
                 "identifier": 0,
-                "roi_coords": cv2.findContours(
-                    mask.astype(np.uint8),
-                    cv2.RETR_EXTERNAL,
-                    cv2.CHAIN_APPROX_SIMPLE,
-                )[0][0],
+                "roi_coords": coords,
                 "measure_unit": self.measure_unit,
                 "pred_iou": score.item(),
                 "stability": None,

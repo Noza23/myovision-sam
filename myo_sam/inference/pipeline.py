@@ -45,6 +45,11 @@ class Pipeline(BaseModel):
         validate_default=False,
     )
 
+    all_contours: bool = Field(
+        default=False,
+        description="Wether to predict all contours or minimum required.",
+    )
+
     measure_unit: float = Field(
         description="The measure unit of the images.", default=1
     )
@@ -177,7 +182,7 @@ class Pipeline(BaseModel):
             if not myotubes_cached:
                 self._myosam_predictor.set_measure_unit(self.measure_unit)
                 myotube_pred = self._myosam_predictor.predict(
-                    self.myotube_image_np
+                    self.myotube_image_np, all_contours=self.all_contours
                 )
                 myotubes = Myotubes.model_validate(
                     {"myo_objects": myotube_pred}
