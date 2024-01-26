@@ -82,7 +82,7 @@ class MyoSamPredictor:
                             pred["segmentation"].astype(np.uint8),
                             cv2.RETR_EXTERNAL,
                             method,
-                        )[0][0],
+                        )[0][0].tolist(),
                         "measure_unit": self.measure_unit,
                         "pred_iou": pred["predicted_iou"],
                         "stability": pred["stability_score"],
@@ -158,7 +158,7 @@ class MyoSamPredictor:
         return Myotube.model_validate(
             {
                 "identifier": 0,
-                "roi_coords": coords,
+                "roi_coords": coords.tolist(),
                 "measure_unit": self.measure_unit,
                 "pred_iou": score.item(),
                 "stability": None,
