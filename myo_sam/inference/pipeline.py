@@ -207,6 +207,7 @@ class Pipeline(BaseModel):
         else:
             nucleis = Nucleis()
 
+        myotubes.add_mapping(nucleis.reverse_mapping)
         clusters = NucleiClusters.compute_clusters(nucleis)
 
         info = InformationMetrics(

@@ -58,8 +58,7 @@ def object_overlaps_by_perc(
     percentage: float = 0.95,
 ) -> bool:
     """
-    Returns True if the point is inside the polygon. takes points of a
-        single object
+    Returns True if one polygon overlaps the other by a certain percentage.
 
     Args:
         points (np.array): n_conts x 1 x 2 array of points. (x, y)

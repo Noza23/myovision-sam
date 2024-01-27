@@ -1,4 +1,5 @@
 import numpy as np
+
 from myo_sam.inference.models.base import (
     Nuclei,
     Myotube,
@@ -8,6 +9,7 @@ from myo_sam.inference.models.base import (
 )
 from myo_sam.inference.models.information import InformationMetrics
 from myo_sam.inference.models.result import MyoSamInferenceResult
+
 
 nuclei_pred = np.load(
     "tests/data/stardist_res.npy", allow_pickle=True
@@ -114,6 +116,7 @@ def test_empty_nucleis():
 def test_result():
     nucleis = get_nucleis()
     myotubes = get_myotubes()
+    myotubes.add_mapping(nucleis.reverse_mapping)
     clusters = NucleiClusters.compute_clusters(nucleis)
     info = InformationMetrics(
         myotubes=myotubes, nucleis=nucleis, nuclei_clusters=clusters
