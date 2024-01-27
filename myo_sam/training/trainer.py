@@ -29,6 +29,7 @@ class TrainerConfig:
     NUM_WORKERS: int
     RUN_NAME: str
     SNAPHOT_PATH: str = "./snapshot/myosam_vit_h.pt"
+    MIXED_PRECISION: bool = True
 
 
 @dataclass
@@ -57,6 +58,7 @@ class Trainer:
         self.model, self.metadata = build_myosam(self.snapshot_path)
         self.epochs_run = self.metadata["EPOCHS_RUN"]
         self.model = self.model.to(self.local_rank)
+        self.mixed_prec = config_train.MIXED_PRECISION
 
         # Logger
         file_handler = logging.FileHandler("myosam.log")
@@ -255,7 +257,10 @@ class Trainer:
                     )
                     average_loss += loss.item()
                     if train:
-                        self.scaler.scale(loss).backward()
+                        if self.mixed_prec:
+                            self.scaler.scale(loss).backward()
+                        else:
+                            loss.backward()
 
             # Last step is out of the no_sync context to sync accumlated grads.
             points = sample_points_from_error_region(
@@ -278,10 +283,15 @@ class Trainer:
                 / accumulation_steps
             )
             if train:
-                self.scaler.scale(loss).backward()
-                self.scaler.step(self.optimizer)
-                # Update is called after accumulating over acc_steps.
-                self.scaler.update()
+                if self.mixed_prec:
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.optimizer)
+                    # Update is called after accumulating over acc_steps.
+                    self.scaler.update()
+                else:
+                    loss.backward()
+                    self.optimizer.step()
+
                 self.optimizer.zero_grad(set_to_none=True)
         return average_loss
 

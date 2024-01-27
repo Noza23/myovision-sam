@@ -8,6 +8,7 @@ trainer_config:
   NUM_WORKERS: 4
   RUN_NAME: initial
   SNAPHOT_PATH: ./snapshot/myosam_vit_h.pt
+  MIXED_PRECISION: true
 
 optimizer_config:
   WEIGHT_DECAY: 0.1
