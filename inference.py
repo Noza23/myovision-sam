@@ -103,7 +103,7 @@ if __name__ == "__main__":
     print(f"> Found {n_devices} CUDA devices.", flush=True)
     # Spawn a process for each device
     print("> Starting Batch Inference...", flush=True)
-    if n_devices == 1:
+    if n_devices <= 1:
         main(config, 0, 1)
     else:
         with Pool(n_devices) as p:
