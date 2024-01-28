@@ -1,0 +1,23 @@
+trainer_config:
+  DATA_DIR: ./data
+  MAX_INSTANCES: 54
+  TRAIN_SPLIT: 0.8
+  MAX_EPOCHS: 40
+  SAVE_EVERY: 1
+  INT_ITERATIONS: 8
+  NUM_WORKERS: 4
+  RUN_NAME: initial
+  SNAPHOT_PATH: ./snapshot/myosam_vit_h.pt
+  MIXED_PRECISION: true
+
+optimizer_config:
+  WEIGHT_DECAY: 0.1
+  LR: 0.0001
+
+defaults:
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+hydra:
+  run:
+    dir: ./
