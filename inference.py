@@ -76,7 +76,7 @@ def main(config: DictConfig, device_id: int, n_devices: int) -> None:
     size = max(len(myotube_images), len(nuclei_images))
     step = size // n_devices
     start = device_id * step
-    end = start + step if device_id != n_devices - 1 else size - 1
+    end = start + step if device_id != n_devices - 1 else size
     myotube_images = myotube_images[start:end]
     nuclei_images = nuclei_images[start:end]
 
