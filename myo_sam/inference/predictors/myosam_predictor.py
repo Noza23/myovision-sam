@@ -19,10 +19,15 @@ from ..models.base import Myotube
 class MyoSamPredictor:
     """The predictor of a MyoSam inference."""
 
-    def __init__(self) -> None:
-        self.amg_config: AmgConfig = AmgConfig()
-        self.model: Union[Sam, None] = None
-        self.measure_unit: float = 1
+    def __init__(
+        self,
+        amg_config: AmgConfig = AmgConfig(),
+        model: Sam = None,
+        mu: float = 1,
+    ) -> None:
+        self.amg_config = amg_config
+        self.model = model
+        self.measure_unit = mu
 
     def set_measure_unit(self, mu: float) -> None:
         """Set the measure unit of the images."""

@@ -9,8 +9,8 @@ import numpy as np
 class StarDistPredictor:
     """The predictor of a StarDist inference."""
 
-    def __init__(self) -> None:
-        self.model: Union[StarDist2D, None] = None
+    def __init__(self, model: Union[StarDist2D, None] = None) -> None:
+        self.model = model
 
     def set_model(self, checkpoint_name: str) -> None:
         """Set the model of the predictor."""
