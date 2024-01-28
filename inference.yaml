@@ -1,0 +1,30 @@
+general:
+  myotube_dir: images/myotubes
+  nuclei_dir: images/nucleis
+  myosam_model: models/myosam.pt
+  stardist_model: 2D_versatile_fluo
+  patch_size: 1500
+  measure_unit: 1
+  device: cuda
+  output_dir: results/
+
+amg_config:
+  points_per_side: 64
+  points_per_batch: 64
+  pred_iou_thresh: 0.8
+  stability_score_thresh: 0.92
+  stability_score_offset: 1
+  box_nms_thresh: 0.7
+  crop_n_layers: 1
+  crop_nms_thresh: 0.7
+  crop_overlap_ratio: 0.34
+  crop_n_points_downscale_factor: 2
+  min_mask_region_area: 100
+
+defaults:
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+hydra:
+  run:
+    dir: ./
