@@ -103,6 +103,9 @@ if __name__ == "__main__":
     print(f"> Found {n_devices} CUDA devices.", flush=True)
     # Spawn a process for each device
     print("> Starting Batch Inference...", flush=True)
-    with Pool(n_devices) as p:
-        p.starmap(main, [(config, i, n_devices) for i in range(n_devices)])
+    if n_devices == 1:
+        main(config, 0, 1)
+    else:
+        with Pool(n_devices) as p:
+            p.starmap(main, [(config, i, n_devices) for i in range(n_devices)])
     print("> Done.", flush=True)
