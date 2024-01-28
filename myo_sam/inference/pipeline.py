@@ -132,7 +132,7 @@ class Pipeline(BaseModel):
     @field_validator("myotube_image", "nuclei_image")
     def validate_file_extension(cls, v) -> str:
         if v and isinstance(v, str):
-            if not Path(v).suffix not in [".png", ".jpeg", ".tif", ".tiff"]:
+            if Path(v).suffix not in [".png", ".jpeg", ".tif", ".tiff"]:
                 raise ValueError(f"File {v} must be a png, jpeg or tif.")
         return v
 
@@ -180,6 +180,7 @@ class Pipeline(BaseModel):
             )
         if self.myotube_image:
             if not myotubes_cached:
+                print("> Predicting Myotubes...", flush=True)
                 self._myosam_predictor.set_measure_unit(self.measure_unit)
                 myotube_pred = self._myosam_predictor.predict(
                     self.myotube_image_np, all_contours=self.all_contours
@@ -194,11 +195,13 @@ class Pipeline(BaseModel):
 
         if self.nuclei_image:
             if not nucleis_cached:
+                print("> Predicting Nucleis...", flush=True)
                 nuclei_pred = self._stardist_predictor.predict(
                     self.nuclei_image_np
                 )
                 nucleis = Nucleis.parse_nucleis(
-                    **nuclei_pred,
+                    roi_coords=nuclei_pred["coord"],
+                    centroids=nuclei_pred["points"],
                     myotubes=myotubes,
                     measure_unit=self.measure_unit,
                 )

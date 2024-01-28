@@ -6,8 +6,6 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 
 from myo_sam.inference.predictors.config import AmgConfig
-from myo_sam.inference.predictors.stardist_predictor import StarDistPredictor
-from myo_sam.inference.predictors.myosam_predictor import MyoSamPredictor
 
 from myo_sam.inference.pipeline import Pipeline
 
@@ -53,27 +51,28 @@ def main(config: DictConfig, device_id: int, n_devices: int) -> None:
             myotube_images, nuclei_images
         )
 
+    pipeline = Pipeline(
+        all_contours=True,
+        measure_unit=general["measure_unit"],
+        _stardist_predictor=stardist_pred,
+        _myosam_predictor=myosam_pred,
+    )
+
     if general["stardist_model"]:
         print("> Loading StarDist model...", flush=True)
-        stardist_pred = StarDistPredictor(general["stardist_model"])
+        pipeline._stardist_predictor.set_model(general["stardist_model"])
 
     if general["myosam_model"]:
         print("> Loading MyoSam model...", flush=True)
         if general["device"] == "cpu":
             raise ValueError("Running MyoSAM on CPU is not supported.")
         amg_config = AmgConfig.model_validate(config["amg_config"])
-        myosam_pred = MyoSamPredictor(amg_config)
-        myosam_pred.set_model(
+        pipeline._myosam_predictor.update_amg_config(amg_config)
+        pipeline._myosam_predictor.set_model(
             general["myosam_model"], general["device"] + ":" + str(device_id)
         )
 
     print("> Starting inference...", flush=True)
-    pipeline = Pipeline(
-        all_contours=True,
-        measure_unit=general["measure_unit"],
-        stardist_predictor=stardist_pred,
-        myosam_predictor=myosam_pred,
-    )
     size = max(len(myotube_images), len(nuclei_images))
     step = size // n_devices
     start = device_id * step

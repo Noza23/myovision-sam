@@ -22,7 +22,7 @@ class MyoSamPredictor:
     def __init__(
         self,
         amg_config: AmgConfig = AmgConfig(),
-        model: Sam = None,
+        model: Union[Sam, None] = None,
         mu: float = 1,
     ) -> None:
         self.amg_config = amg_config
@@ -49,11 +49,17 @@ class MyoSamPredictor:
         return "MyoSam"
 
     @property
-    def amg(self):
-        return CustomAutomaticMaskGenerator(self.model, **self.amg_config)
+    def amg(self) -> CustomAutomaticMaskGenerator:
+        if not self.model:
+            raise ValueError("Model must be set.")
+        return CustomAutomaticMaskGenerator(
+            self.model, **self.amg_config.model_dump()
+        )
 
     @property
-    def predictor(self):
+    def predictor(self) -> SamPredictor:
+        if not self.model:
+            raise ValueError("Model must be set.")
         return SamPredictor(self.model)
 
     def update_amg_config(self, config: dict[str, Any]) -> None:
@@ -77,7 +83,8 @@ class MyoSamPredictor:
         patch_size = (1500, 1500)
         grid, patches = split_image_into_patches(image, patch_size)
         pred_pre = []
-        for patch in patches:
+        for i, patch in enumerate(patches):
+            print(f"> Predicting patch {i + 1}/{len(patches)}...", flush=True)
             pred_dict = self.amg.generate(patch)
             for i, pred in enumerate(pred_dict):
                 pred_pre.append(
@@ -87,7 +94,7 @@ class MyoSamPredictor:
                             pred["segmentation"].astype(np.uint8),
                             cv2.RETR_EXTERNAL,
                             method,
-                        )[0][0].tolist(),
+                        )[0][0],
                         "measure_unit": self.measure_unit,
                         "pred_iou": pred["predicted_iou"],
                         "stability": pred["stability_score"],
@@ -105,7 +112,7 @@ class MyoSamPredictor:
         """Postprocess myosam prediction results."""
         pred_post = []
         conts, ids = merge_masks_at_splitponits(
-            [pred["segmentation"] for pred in pred_dict],
+            [pred["roi_coords"] for pred in pred_dict],
             grid,
             patch_size,
             iou_threshold=0.5,
@@ -116,7 +123,7 @@ class MyoSamPredictor:
             pred_post.append(
                 {
                     "identifier": i,
-                    "roi_coords": conts[i],  # new merged conts
+                    "roi_coords": conts[i].squeeze().tolist(),
                     "measure_unit": self.measure_unit,
                     "pred_iou": np.mean(
                         [pred_dict[i]["pred_iou"] for i in lst],
@@ -163,7 +170,7 @@ class MyoSamPredictor:
         return Myotube.model_validate(
             {
                 "identifier": 0,
-                "roi_coords": coords.tolist(),
+                "roi_coords": coords.squeeze().tolist(),
                 "measure_unit": self.measure_unit,
                 "pred_iou": score.item(),
                 "stability": None,
