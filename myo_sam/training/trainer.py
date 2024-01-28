@@ -222,7 +222,9 @@ class Trainer:
         low_res_masks = torch.zeros(
             (gt_instances.shape[0], 1, 256, 256), device=self.local_rank
         )
-        with torch.set_grad_enabled(train), torch.autocast("cuda"):
+        with torch.set_grad_enabled(train), torch.autocast(
+            "cuda", enabled=self.mixed_prec
+        ):
             # Gradient accumulation
             with self.model.no_sync():
                 # Interactive prompting
@@ -282,6 +284,7 @@ class Trainer:
                 )
                 / accumulation_steps
             )
+            average_loss += loss.item()
             if train:
                 if self.mixed_prec:
                     self.scaler.scale(loss).backward()
