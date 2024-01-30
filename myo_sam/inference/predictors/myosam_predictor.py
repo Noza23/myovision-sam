@@ -90,6 +90,8 @@ class MyoSamPredictor:
         for i, patch in enumerate(patches):
             print(f"> Predicting patch {i + 1}/{len(patches)}...", flush=True)
             pred_dict = self.amg.generate(patch)
+            r, c = i // grid[1], i % grid[1]  # row, column
+            offset = np.array([c * patch_size[1], r * patch_size[0]])[None, :]
             for i, pred in enumerate(pred_dict):
                 pred_pre.append(
                     {
@@ -98,7 +100,8 @@ class MyoSamPredictor:
                             pred["segmentation"].astype(np.uint8),
                             cv2.RETR_EXTERNAL,
                             method,
-                        )[0][0],
+                        )[0][0]
+                        + offset,
                         "measure_unit": self.measure_unit,
                         "pred_iou": pred["predicted_iou"],
                         "stability": pred["stability_score"],
