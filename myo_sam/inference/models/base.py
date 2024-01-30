@@ -203,12 +203,16 @@ class Nuclei(MyoObject):
     """A detected nuclei."""
 
     myotube_ids: list[Optional[int]] = Field(
-        description="Identifer of the myotubes the nuclei belongs to."
+        description="Identifer of the myotubes the nuclei belongs to.",
+        default_factory=list,
     )
-    centroid: tuple[float, float] = Field(
-        description="Centroid of the nuclei. (x, y)"
+    centroid: Optional[tuple[float, float]] = Field(
+        description="Centroid of the nuclei. (x, y)", default_factory=tuple
     )
-    prob: Optional[float] = Field(description="Probability of the nuclei pred")
+    prob: Optional[float] = Field(
+        description="Probability of the nuclei pred",
+        default_factory=float,
+    )
 
 
 class MyoObjects(BaseModel):
@@ -246,6 +250,23 @@ class MyoObjects(BaseModel):
             if cv2.pointPolygonTest(myo.roi_coords_np, point, False) >= 0:
                 return myo
         return None
+
+    def add_instances_from_coords(self, coords: list[np.ndarray]) -> None:
+        """Adds an instance to the myoobjects."""
+        if self.myo_objects:
+            last_id = max([m.identifier for m in self.myo_objects])
+            mu = self.myo_objects[0].measure_unit
+        else:
+            last_id = 0
+            mu = 1
+        for i, coord in enumerate(coords, start=1):
+            self.myo_objects.append(
+                MyoObject(
+                    identifier=last_id + i,
+                    roi_coords=coord.squeeze().tolist(),
+                    measure_unit=mu,
+                )
+            )
 
     @property
     def reverse_mapping(self) -> dict[Optional[int], list[int]]:
