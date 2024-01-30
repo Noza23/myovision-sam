@@ -121,7 +121,9 @@ class MyoObject(BaseModel):
 class Myotube(MyoObject):
     pred_iou: Optional[float] = Field(description="Predicted IoU")
     stability: Optional[float] = Field(description="Stability")
-    is_on_edge: bool = Field(description="Is myotube on edge")
+    is_on_edge: Optional[bool] = Field(
+        default=None, description="Is myotube on edge"
+    )
     rgb_repr: list[list[int]] = Field(
         description="RGB representation", exclude=True, default_factory=list
     )

@@ -176,7 +176,7 @@ def merge_over_axis(
 
 def is_on_edge(roi_coord: np.ndarray, edges_x: list, axis: int) -> bool:
     """Check if the roi_coord is on the x edge of the patch."""
-    return np.any(roi_coord[:, :, 1 - axis] == edges_x)
+    return np.any(roi_coord[:, :, 1 - axis] == edges_x).item()
 
 
 def invert_image(image: np.ndarray) -> np.ndarray:
