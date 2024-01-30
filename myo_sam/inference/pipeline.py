@@ -155,13 +155,23 @@ class Pipeline(BaseModel):
 
         myo_rois = [myo.roi_coords_np for myo in myotubes]
         nuclei_rois = [nuclei.roi_coords_np for nuclei in nucleis]
+        img = self.draw_contours(img, myo_rois, (0, 255, 0), thickness)
+        img = self.draw_contours(
+            img, nuclei_rois, (255, 0, 0), max(thickness - 1, 0)
+        )
+        return img
 
-        if myo_rois:
-            cv2.drawContours(img, myo_rois, -1, (0, 255, 0), thickness)
-        if nuclei_rois:
-            cv2.drawContours(
-                img, nuclei_rois, -1, (255, 0, 0), max(thickness - 1, 0)
-            )
+    @classmethod
+    def draw_contours(
+        cls,
+        img: np.ndarray,
+        contours: list[np.ndarray],
+        color: tuple[int, int, int],
+        thickness: int = 3,
+    ) -> np.ndarray:
+        """Draw the contours on the image."""
+        if contours:
+            cv2.drawContours(img, contours, -1, color, thickness)
         return img
 
     def execute(
