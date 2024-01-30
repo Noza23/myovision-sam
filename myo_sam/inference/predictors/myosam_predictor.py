@@ -12,7 +12,11 @@ from myo_sam.inference.build_myosam import build_myosam_inference
 
 from .config import AmgConfig
 from .amg import CustomAutomaticMaskGenerator
-from .utils import split_image_into_patches, merge_masks_at_splitponits
+from .utils import (
+    split_image_into_patches,
+    merge_masks_at_splitponits,
+    is_on_edge,
+)
 from ..models.base import Myotube
 
 
@@ -101,13 +105,14 @@ class MyoSamPredictor:
                         "rgb_repr": patch[pred["segmentation"]].tolist(),
                     }
                 )
-        return self.postprocess_pred(pred_pre, grid, patch_size)
+        return self.postprocess_pred(pred_pre, grid, patch_size, image.shape)
 
     def postprocess_pred(
         self,
         pred_dict: list[dict[str, Any]],
         grid: tuple[int, int],
         patch_size: tuple[int, int],
+        image_shape: tuple[int, int],
     ) -> list[dict[str, Any]]:
         """Postprocess myosam prediction results."""
         pred_post = []
@@ -138,6 +143,8 @@ class MyoSamPredictor:
                             [pred_dict[i]["rgb_repr"] for i in lst]
                         )  # new merged rgb_repr
                     ),
+                    "is_on_edge": is_on_edge(conts[i], [0, image_shape[0]], 0)
+                    or is_on_edge(conts[i], [0, image_shape[1]], 1),
                 }
             )
         return pred_post
