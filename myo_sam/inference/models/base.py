@@ -1,6 +1,6 @@
 from typing import Any
 from functools import cached_property
-from typing import Optional
+from typing import Optional, overload, Union
 import math
 import statistics
 from collections import defaultdict
@@ -292,7 +292,17 @@ class MyoObjects(BaseModel):
     def __len__(self) -> int:
         return len(self.myo_objects)
 
+    @overload
+    def __getitem__(self, idx: slice) -> "MyoObjects":
+        ...
+
+    @overload
     def __getitem__(self, idx: int) -> MyoObject:
+        ...
+
+    def __getitem__(
+        self, idx: Union[int, slice]
+    ) -> Union[MyoObject, "MyoObjects"]:
         if isinstance(idx, slice):
             return self.__class__(myo_objects=self.myo_objects[idx])
         return self.myo_objects[idx]
