@@ -195,6 +195,14 @@ class Myotube(MyoObject):
         """Centroid of the myoobject. (x, y)"""
         return self.elipse[0]
 
+    @computed_field  # type: ignore[misc]
+    @property
+    def is_on_edge(self) -> bool:
+        """Check if the myoobject is on the edge of the image."""
+        return np.any(self.roi_coords_np[:, :, 0] == 0) or np.any(
+            self.roi_coords_np[:, :, 1] == 0
+        )
+
 
 class Nuclei(MyoObject):
     """A detected nuclei."""

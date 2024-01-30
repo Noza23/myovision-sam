@@ -179,6 +179,13 @@ def is_on_edge(roi_coord: np.ndarray, edges_x: list, axis: int) -> bool:
     return np.any(roi_coord[:, :, 1 - axis] == edges_x)
 
 
+def invert_image(image: np.ndarray) -> np.ndarray:
+    """Invert an BGR image."""
+    return cv2.cvtColor(
+        255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR
+    )
+
+
 def merge_two_contours(cont1: np.ndarray, cont2: np.ndarray) -> np.ndarray:
     """Merge two contours."""
     conts = np.concatenate([cont1, cont2])
