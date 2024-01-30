@@ -171,11 +171,12 @@ def merge_over_axis(
                 ids[i] = id_i + id_j
                 instances.pop(i + j + 1), ids.pop(i + j + 1)
                 j -= 1
+                i -= 1
     return instances, ids
 
 
 def is_on_edge(roi_coord: np.ndarray, edges_x: list, axis: int) -> bool:
-    """Check if the roi_coord is on the x edge of the patch."""
+    """Check if the roi_coord is on the edge of the patch in the given axis."""
     return np.any(roi_coord[:, :, 1 - axis] == edges_x).item()
 
 
