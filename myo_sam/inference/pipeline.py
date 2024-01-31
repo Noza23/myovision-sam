@@ -89,12 +89,7 @@ class Pipeline(BaseModel):
         return img
 
     def myotube_hash(self) -> str:
-        return hash_bytes(
-            (
-                self.myotube_image_np.tobytes()
-                + self._myosam_predictor.amg_config.model_dump_json().encode()
-            )
-        )
+        return hash_bytes(self.myotube_image_np.tobytes())
 
     @staticmethod
     def save_image(path: str, img: np.ndarray) -> None:
