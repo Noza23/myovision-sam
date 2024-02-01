@@ -447,7 +447,9 @@ class NucleiCluster(MyoObjects):
 class NucleiClusters(BaseModel):
     """The nuclei clusters of a MyoSam inference."""
 
-    clusters: list[NucleiCluster] = Field(description="List of clusters.")
+    clusters: list[NucleiCluster] = Field(
+        description="List of clusters.", default_factory=list
+    )
 
     def __str__(self) -> str:
         return f"num_clusters: {len(self.clusters)}"
