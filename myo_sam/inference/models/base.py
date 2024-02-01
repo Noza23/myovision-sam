@@ -251,7 +251,7 @@ class MyoObjects(BaseModel):
                 return myo
         return None
 
-    def add_instances_from_coords(self, coords: list[np.ndarray]) -> None:
+    def add_instances_from_coords(self, coords: list[list[list[int]]]) -> None:
         """Adds an instance to the myoobjects."""
         if self.myo_objects:
             last_id = max([m.identifier for m in self.myo_objects])
@@ -263,7 +263,7 @@ class MyoObjects(BaseModel):
             self.myo_objects.append(
                 MyoObject(
                     identifier=last_id + i,
-                    roi_coords=coord.squeeze().tolist(),
+                    roi_coords=coord,
                     measure_unit=mu,
                 )
             )
