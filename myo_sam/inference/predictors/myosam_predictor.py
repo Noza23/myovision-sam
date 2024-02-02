@@ -39,8 +39,8 @@ class MyoSamPredictor:
 
     def set_model(self, checkpoint: str, device: str) -> None:
         """Set the model of the predictor."""
-        if device == "cpu":
-            raise ValueError("Running MyoSAM on CPU is not supported.")
+        # if device == "cpu":
+        #     raise ValueError("Running MyoSAM on CPU is not supported.")
         if not Path(checkpoint).exists():
             raise ValueError(
                 f"Checkpoint could be found: {checkpoint} does not exist."

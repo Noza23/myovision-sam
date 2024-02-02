@@ -61,6 +61,6 @@ def build_myosam_inference(checkpoint: str) -> Sam:
     )
     sam.eval()
     with open(checkpoint, "rb") as f:
-        state_dict = torch.load(f)
+        state_dict = torch.load(f, map_location="cpu")
     sam.load_state_dict(state_dict)
     return sam

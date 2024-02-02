@@ -259,14 +259,17 @@ class MyoObjects(BaseModel):
         else:
             last_id = 0
             mu = 1
-        for i, coord in enumerate(coords, start=1):
-            self.myo_objects.append(
-                MyoObject(
-                    identifier=last_id + i,
-                    roi_coords=coord,
-                    measure_unit=mu,
-                )
+
+        new_instances = [
+            MyoObject(
+                identifier=last_id + i + 1,
+                roi_coords=coord,
+                measure_unit=mu,
             )
+            for i, coord in enumerate(coords, start=1)
+        ]
+        # Add new instance to the beginning of the list
+        self.myo_objects = new_instances + self.myo_objects
 
     @property
     def reverse_mapping(self) -> dict[Optional[int], list[int]]:
