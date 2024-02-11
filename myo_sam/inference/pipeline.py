@@ -194,7 +194,7 @@ class Pipeline(BaseModel):
                     {"myo_objects": myotube_pred}
                 )
             else:
-                myotubes = Myotubes.model_validate(myotubes_cached)
+                myotubes = Myotubes.model_validate_json(myotubes_cached)
         else:
             myotubes = Myotubes()
 
@@ -211,7 +211,7 @@ class Pipeline(BaseModel):
                     measure_unit=self.measure_unit,
                 )
             else:
-                nucleis = Nucleis.model_validate(nucleis_cached)
+                nucleis = Nucleis.model_validate_json(nucleis_cached)
         else:
             nucleis = Nucleis()
 
