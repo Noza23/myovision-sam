@@ -49,7 +49,7 @@ def split_image_into_patches(
     patch_height, patch_width = patch_size
 
     if patch_height > height or patch_width > width:
-        return (0, 0), [image]
+        return (1, 1), [image]
 
     patches = []
     width_reminder = width % patch_width
