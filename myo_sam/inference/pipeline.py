@@ -27,9 +27,9 @@ class Pipeline(BaseModel):
         default=None,
         validate_default=False,
     )
-    myotube_image_name: Optional[str] = Field(
+    myotube_image_name: str = Field(
         description="Name of Myotube Image",
-        default=None,
+        default="",
         validate_default=False,
     )
 
@@ -39,9 +39,9 @@ class Pipeline(BaseModel):
         validate_default=False,
     )
 
-    nuclei_image_name: Optional[str] = Field(
+    nuclei_image_name: str = Field(
         description="Name of Nuclei Image",
-        default=None,
+        default="",
         validate_default=False,
     )
 
