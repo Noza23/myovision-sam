@@ -56,18 +56,22 @@ class MyoObject(BaseModel):
     @property
     def solidity(self) -> float:
         """Solidity of the myoobject."""
-        return self.area / self.convex_area
+        return self.area / self.convex_area if self.convex_area else 0
 
     @computed_field  # type: ignore[misc]
     @property
     def aspect_ratio(self) -> float:
         """Aspect ratio of the myoobject."""
+        if self.elipse[1][1] == 0:
+            return 0
         return self.elipse[1][0] / self.elipse[1][1]
 
     @computed_field  # type: ignore[misc]
     @property
     def roundness(self) -> float:
         """Roundness of the myoobject."""
+        if self.elipse[1][0] == 0:
+            return 0
         return 4 * self.area / (math.pi * self.elipse[1][0] ** 2)
 
     @computed_field  # type: ignore[misc]
@@ -92,6 +96,8 @@ class MyoObject(BaseModel):
     @property
     def circularity(self) -> float:
         """Circularity of the myoobject."""
+        if self.perimeter == 0:
+            return 0
         return 4 * math.pi * self.area / (self.perimeter**2)
 
     @property
@@ -363,6 +369,8 @@ class Nucleis(MyoObjects):
 
     @property
     def total_fusion_index(self):
+        if self.num_myoblasts == 0:
+            return 0
         return self.num_nuclei_inside_myotubes / self.num_myoblasts
 
     def __str__(self) -> str:
