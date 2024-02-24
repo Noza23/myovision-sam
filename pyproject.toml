@@ -27,7 +27,8 @@ license = {file = "LICENSE"}
 inference = [
   "opencv-python-headless>=4.0",
   "pydantic>=2.0.0",
-  "networkx>=3.0"
+  "networkx>=3.0",
+  "MetricsReloaded>=0.1.0"
 ]
 stardist = ["tensorflow>=2.0", "stardist>=0.8.5"]
 
