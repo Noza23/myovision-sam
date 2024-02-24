@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from collections import OrderedDict
 
 
 def object_overlaps_box(
@@ -90,3 +91,78 @@ def vec_to_sym_matrix(vec: np.ndarray, ms: int) -> np.ndarray:
     sym_matrix = sym_matrix | sym_matrix.T
     np.fill_diagonal(sym_matrix, True)
     return sym_matrix
+
+
+def rois2coords(rois: OrderedDict) -> list[np.ndarray]:
+    """
+    Converts a ordered dictionary of ROIs into a list of coordinates.
+
+    Args:
+        rois (OrderedDict): Dictionary of ROIs.
+
+    Returns:
+        list: List of coordinates (numpy arrays).
+    """
+
+    coords_lst = []
+    for k, roi in rois.items():
+        coords = np.round(np.stack((roi["x"], roi["y"]), axis=1)).astype(
+            np.int32
+        )[:, None, :]
+        coords_lst.append(coords)
+    return coords_lst
+
+
+def coord2cont(coord: np.ndarray, im_shape: tuple[int, int]) -> np.ndarray:
+    """
+    Converts coordinates of a binary mask contour into a contour of a binary mask.
+
+    Args:
+        coord (np.ndarray): Contour (numpy array).
+        im_shape (tuple): Shape of the image.
+
+    Returns:
+        np.ndarray: Contour (numpy array).
+    """
+
+    contour = np.zeros(im_shape, dtype=np.uint8).copy()
+    cv2.drawContours(contour, [coord], -1, (1), thickness=1)
+    return contour
+
+
+def coord2mask(coord: np.ndarray, im_shape: tuple[int, int]) -> np.ndarray:
+    """
+    Converts coordinates of a binary mask contour into a binary mask.
+
+    Args:
+        coord (np.ndarray): Contour (numpy array).
+        im_shape (tuple): Shape of the image.
+
+    Returns:
+        np.ndarray: Binary mask (numpy array).
+    """
+
+    contour = np.zeros(im_shape, dtype=np.uint8).copy()
+    cv2.drawContours(contour, [coord], -1, (1), thickness=-1)
+    return contour
+
+
+def mask2cont(mask: np.ndarray, im_shape: tuple[int, int]) -> np.ndarray:
+    """
+    Converts a binary mask into a contour.
+
+    Args:
+        mask (np.ndarray): Binary mask (numpy array).
+        im_shape (tuple): Shape of the image.
+
+    Returns:
+        np.ndarray: Contour (numpy array).
+    """
+
+    mask_np = mask.astype(np.uint8)
+    coords, _ = cv2.findContours(
+        mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+    cont = np.zeros(im_shape, dtype=np.uint8).copy()
+    cv2.drawContours(cont, coords, -1, (1))
+    return cont
