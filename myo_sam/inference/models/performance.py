@@ -13,29 +13,37 @@ from .utils import mask2cont
 class PerformanceMetrics(BaseModel):
     """The performance metrics of a MyoSam inference."""
 
-    tp: int = Field(description="Number of true positives")
-    fp: int = Field(description="Number of false positives")
-    fn: int = Field(description="Number of false negatives")
-    precision: float = Field(description="Precision")
-    recall: float = Field(description="Recall")
-    accuracy: float = Field(description="Accuracy")
-    panoptic_quality: float = Field(description="Panoptic Quality")
+    tp: int = Field(description="Number of true positives", ge=0)
+    fp: int = Field(description="Number of false positives", ge=0)
+    fn: int = Field(description="Number of false negatives", ge=0)
+    precision: float = Field(description="Precision", ge=0, le=1)
+    recall: float = Field(description="Recall", ge=0, le=1)
+    accuracy: float = Field(description="Accuracy", ge=0, le=1)
+    panoptic_quality: float = Field(description="Panoptic Quality", ge=0, le=1)
     mean_matching_score: float = Field(
-        description="Mean matching score (either iou or ior)"
+        description="Mean matching score (either iou or ior)", ge=0, le=1
     )
     normalized_matching_score: float = Field(
-        description="Normalized matching score"
+        description="Normalized matching score", ge=0, le=1
     )
-    mean_nsd: float = Field(description="Mean nsd (only for myotubes)")
+    mean_nsd: float = Field(description="Mean nsd (only for myotubes)", ge=0)
     normalized_nsd: float = Field(
-        description="Normalized nsd (only for myotubes)"
+        description="Normalized nsd (only for myotubes)", ge=0
     )
     mean_iou: float = Field(
-        description="Mean iou (only for mask_ior matching)"
+        description="Mean iou (only for mask_ior matching)", ge=0, le=1
     )
     normalized_iou: float = Field(
-        description="Normalized iou (only for mask_ior matching)"
+        description="Normalized iou (only for mask_ior matching)", ge=0, le=1
     )
+
+    def __str__(self) -> str:
+        return "\n".join(
+            [
+                f"{k}: {v if not isinstance(v, float) else round(v, 2)}"
+                for k, v in self.model_dump().items()
+            ]
+        )
 
     @classmethod
     def performance_myovision(
@@ -47,36 +55,27 @@ class PerformanceMetrics(BaseModel):
         flag_fp_in: bool,
         object_type: str,
         im_shape: tuple[int, int],
-    ) -> dict:
+    ) -> "PerformanceMetrics":
         """
         Calculates performance metrics of MyoSAM inference.
 
         Args:
             ref_loc (list of np.ndarray): List of reference binary masks.
             pred_loc (list of np.ndarray): List of predicted binary masks.
-            localization (str): Localization method, either 'mask_iou' (intersection over union) or 'mask_ior' (intersection over reference).
+            localization (str): Localization method, either 'mask_iou'
+                (intersection over union) or 'mask_ior' (intersection over reference).
             thresh (float): Matching threshold.
-            flag_fp_in (bool): Flag for double detection.
-            If True, predicted masks other than the best match that match/surpass the threshold are considered false positives.
+            flag_fp_in (bool): Flag for double detection. If True, predicted
+                masks other than the best match that match/surpass the threshold are considered false positives.
             object_type (str): Object type, either 'myotubes' or 'nuclei'.
             im_shape (tuple): Image shape (height, width).
 
         Returns:
-            dict: Dictionary with performance metrics.
-            metrics in dict: number of true positives
-                            number of false positives
-                            number of false negatives
-                            precision
-                            recall
-                            accuracy
-                            panoptic quality
-                            mean matching score (either iou or ior)
-                            normalized matching score
-                            mean nsd (only for myotubes)
-                            normalized nsd (only for myotubes)
-                            mean iou (only for mask_ior matching)
-                            normalized iou (only for mask_ior matching)
+            PerformanceMetrics: The performance metrics of the MyoSAM inference.
         """
+        assert localization in ["mask_iou", "mask_ior"]
+        assert object_type in ["myotubes", "nuclei"]
+
         # Initialize AssignmentMapping
         assignment_mapping = AM(
             pred_loc=pred_loc,
@@ -156,6 +155,7 @@ class PerformanceMetrics(BaseModel):
                 {"mean nsd": mean_nsd, "normalised nsd": norm_mean_nsd}
             )
         else:
+            # NSD is not calculated for 'nuclei'
             result_dict.update({"mean nsd": None, "normalised nsd": None})
 
         # IOU calculation for 'mask_ior'
