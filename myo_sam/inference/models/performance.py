@@ -152,12 +152,7 @@ class PerformanceMetrics(BaseModel):
             norm_mean_nsd = (mean_nsd * tp) / len(ref_loc)
 
             result_dict.update(
-                {
-                    "mean_nsd": mean_nsd,
-                    "normalized_nsd": norm_mean_nsd,
-                    "mean_iou": None,
-                    "normalized_iou": None,
-                }
+                {"mean_nsd": mean_nsd, "normalized_nsd": norm_mean_nsd}
             )
         else:
             result_dict.update({"mean_nsd": None, "normalized_nsd": None})
