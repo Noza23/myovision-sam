@@ -115,15 +115,15 @@ class PerformanceMetrics(BaseModel):
         ap = tp / (tp + fp + fn)
 
         result_dict = {
-            "true positives": tp,
-            "false positives": fp,
-            "false negatives": fn,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
             "precision": ppv,
             "recall": sens,
             "accuracy": ap,
-            "panoptic quality": pq,
-            "mean matching score": score_localization,
-            "normalised matching score": norm_score_localization,
+            "panoptic_quality": pq,
+            "mean_matching_score": score_localization,
+            "normalized_matching_score": norm_score_localization,
         }
 
         tp_pred_loc_idx_list = df_matching["pred"][
@@ -152,11 +152,15 @@ class PerformanceMetrics(BaseModel):
             norm_mean_nsd = (mean_nsd * tp) / len(ref_loc)
 
             result_dict.update(
-                {"mean nsd": mean_nsd, "normalised nsd": norm_mean_nsd}
+                {
+                    "mean_nsd": mean_nsd,
+                    "normalized_nsd": norm_mean_nsd,
+                    "mean_iou": None,
+                    "normalized_iou": None,
+                }
             )
         else:
-            # NSD is not calculated for 'nuclei'
-            result_dict.update({"mean nsd": None, "normalised nsd": None})
+            result_dict.update({"mean_nsd": None, "normalized_nsd": None})
 
         # IOU calculation for 'mask_ior'
         if localization == "mask_ior":
@@ -169,7 +173,8 @@ class PerformanceMetrics(BaseModel):
             norm_mean_iou = (mean_iou * tp) / len(ref_loc)
 
             result_dict.update(
-                {"mean iou": mean_iou, "normalised iou": norm_mean_iou}
+                {"mean_iou": mean_iou, "normalized_iou": norm_mean_iou}
             )
-
+        else:
+            result_dict.update({"mean_iou": None, "normalized_iou": None})
         return cls.model_validate(result_dict)
