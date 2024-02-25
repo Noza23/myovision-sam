@@ -60,6 +60,11 @@ To start Distributed Training/Fine-Tuning of the model:
 
   To adjust training to your data just change the dataloader in `myo_sam.training.dataset` sub-module.
 
+  ## Model Checkpoints
+
+  - [MyoSAM checkpoint](https://drive.google.com/file/d/1wAlAgqo_NCNnrE8zjQFIkHXpLhTjg3fs/view?usp=sharing)
+  - For the checkpoints of Pre-Trained models refer to [segment-anything](https://github.com/facebookresearch/segment-anything) repository
+
 # Inference
 
 All modules assosicated with Inference are located in the `myo_sam.inference` sub-module.
