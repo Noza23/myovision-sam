@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 import numpy as np
 from MetricsReloaded.metrics.pairwise_measures import (
@@ -26,14 +27,16 @@ class PerformanceMetrics(BaseModel):
     normalized_matching_score: float = Field(
         description="Normalized matching score", ge=0, le=1
     )
-    mean_nsd: float = Field(description="Mean nsd (only for myotubes)", ge=0)
-    normalized_nsd: float = Field(
+    mean_nsd: Optional[float] = Field(
+        description="Mean nsd (only for myotubes)", ge=0
+    )
+    normalized_nsd: Optional[float] = Field(
         description="Normalized nsd (only for myotubes)", ge=0
     )
-    mean_iou: float = Field(
+    mean_iou: Optional[float] = Field(
         description="Mean iou (only for mask_ior matching)", ge=0, le=1
     )
-    normalized_iou: float = Field(
+    normalized_iou: Optional[float] = Field(
         description="Normalized iou (only for mask_ior matching)", ge=0, le=1
     )
 
