@@ -8,7 +8,7 @@ import cv2
 
 from segment_anything import SamPredictor
 from segment_anything.modeling import Sam
-from myo_sam.inference.build_myosam import build_myosam_inference
+from myosam.inference.build_myosam import build_myosam_inference
 
 from .config import AmgConfig
 from .amg import CustomAutomaticMaskGenerator

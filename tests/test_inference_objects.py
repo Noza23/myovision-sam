@@ -1,14 +1,14 @@
 import numpy as np
 
-from myo_sam.inference.models.base import (
+from myosam.inference.models.base import (
     Nuclei,
     Myotube,
     Nucleis,
     Myotubes,
     NucleiClusters,
 )
-from myo_sam.inference.models.information import InformationMetrics
-from myo_sam.inference.models.result import MyoSamInferenceResult
+from myosam.inference.models.information import InformationMetrics
+from myosam.inference.models.result import MyoSamInferenceResult
 
 
 nuclei_pred = np.load(

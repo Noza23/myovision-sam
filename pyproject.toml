@@ -3,7 +3,7 @@ requires = ["setuptools>=61.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "myo_sam"
+name = "myosam"
 requires-python = ">=3.9"
 version = "0.1.0"
 maintainers = [
@@ -35,7 +35,7 @@ stardist = ["tensorflow>=2.0", "stardist>=0.8.5"]
 dev = ["mypy", "pre-commit", "ruff"]
 test = ["coverage", "pytest"]
 
-all = ["myo_sam[inference, stardist]"]
+all = ["myosam[inference, stardist]"]
 
 [tool.setuptools]
 include-package-data = false

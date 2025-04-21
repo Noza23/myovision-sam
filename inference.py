@@ -5,9 +5,9 @@ import os
 import torch
 from omegaconf import DictConfig, OmegaConf
 
-from myo_sam.inference.predictors.config import AmgConfig
+from myosam.inference.predictors.config import AmgConfig
 
-from myo_sam.inference.pipeline import Pipeline
+from myosam.inference.pipeline import Pipeline
 
 
 def pair_images(f1: list[str], f2: list[str]) -> tuple[list[str], list[str]]:

@@ -24,7 +24,7 @@ pip install .[all]
 
 # Training / Fine-Tuning
 
-All modules assosicated with Training/Fine-Tuning are located in the `myo_sam.training` sub-module.
+All modules assosicated with Training/Fine-Tuning are located in the `myosam.training` sub-module.
 To start Distributed Training/Fine-Tuning of the model:
 
 - Fill out the configuration file `train.yaml`.
@@ -58,7 +58,7 @@ To start Distributed Training/Fine-Tuning of the model:
 
   ## Adjust to your Data
 
-  To adjust training to your data just change the dataloader in `myo_sam.training.dataset` sub-module.
+  To adjust training to your data just change the dataloader in `myosam.training.dataset` sub-module.
 
   ## Model Checkpoints
 
@@ -67,7 +67,7 @@ To start Distributed Training/Fine-Tuning of the model:
 
 # Inference
 
-All modules assosicated with Inference are located in the `myo_sam.inference` sub-module.
+All modules assosicated with Inference are located in the `myosam.inference` sub-module.
 To perform Inference on Myotube & Nuclei Images in batch mode:
 
 - Fill out the configuration file `inference.yaml`.

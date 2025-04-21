@@ -5,7 +5,7 @@ from torch.distributed import init_process_group, destroy_process_group
 import hydra
 from omegaconf import DictConfig
 
-from myo_sam.training.trainer import Trainer, TrainerConfig, OptimizerConfig
+from myosam.training.trainer import Trainer, TrainerConfig, OptimizerConfig
 
 
 def ddp_setup():
