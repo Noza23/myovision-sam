@@ -171,8 +171,8 @@ class Pipeline(BaseModel):
 
     def execute(
         self,
-        myotubes_cached: Optional[str] = None,
-        nucleis_cached: Optional[str] = None,
+        myotubes_cached: Optional[Myotubes] = None,
+        nucleis_cached: Optional[Nucleis] = None,
     ) -> MyoSamInferenceResult:
         """
         Execute the pipeline of the inference.
@@ -194,7 +194,7 @@ class Pipeline(BaseModel):
                     {"myo_objects": myotube_pred}
                 )
             else:
-                myotubes = Myotubes.model_validate_json(myotubes_cached)
+                myotubes = myotubes_cached
         else:
             myotubes = Myotubes()
 
@@ -211,7 +211,7 @@ class Pipeline(BaseModel):
                     measure_unit=self.measure_unit,
                 )
             else:
-                nucleis = Nucleis.model_validate_json(nucleis_cached)
+                nucleis = nucleis_cached
         else:
             nucleis = Nucleis()
 
